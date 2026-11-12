@@ -1,0 +1,26 @@
+# Manifeste des données d'ecl9.
+#
+# Les données ne sont PAS versionnées : la licence Freddie Mac interdit leur
+# redistribution. Ce fichier dit quoi télécharger et d'où ; le script
+# `ecl9-telecharger` les récupère et écrit leurs empreintes SHA-256 dans
+# `manifeste.lock.json`, qui lui est versionné pour garantir que tout le monde
+# travaille sur les mêmes fichiers.
+
+[freddie_mac]
+description = "Single-Family Loan-Level Dataset, version échantillon (environ 50 000 prêts par année d'octroi)"
+documentation = "https://www.freddiemac.com/research/datasets/sf-loanlevel-dataset"
+connexion = "https://freddiemac.embs.com/FLoan/secure/auth.php"
+acceptation = "https://freddiemac.embs.com/FLoan/Data/download.php"
+url_modele = "https://freddiemac.embs.com/FLoan/Data/sample_{annee}.zip"
+annees = [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008]
+dossier = "brut/freddie"
+# Chaque archive contient sample_orig_{annee}.txt (octroi) et
+# sample_svcg_{annee}.txt (suivi mensuel), séparés par « | », sans en-tête.
+licence = "Inscription gratuite ; redistribution interdite."
+
+[fred]
+description = "Séries macroéconomiques de la Réserve fédérale de Saint-Louis"
+url_modele = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={serie}"
+series = ["UNRATE", "CSUSHPISA", "MORTGAGE30US", "DGS10"]
+dossier = "brut/fred"
+licence = "Domaine public pour ces séries (vérifier les mentions de chaque série)."
