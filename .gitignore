@@ -1,0 +1,39 @@
+# Données : jamais versionnées (redistribution Freddie Mac interdite).
+# Seuls le manifeste, son verrou et le README du dossier sont suivis.
+data/*
+!data/README.md
+!data/manifeste.toml
+!data/manifeste.lock.json
+
+# Résultats intermédiaires du pipeline
+sorties/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# Quarto
+rapport/_site/
+rapport/.quarto/
+rapport/*_files/
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+
+# Secrets locaux
+.env
+
+# Système
+.DS_Store

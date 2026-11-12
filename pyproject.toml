@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ecl9"
+version = "0.1.0"
+description = "Moteur de pertes de crédit attendues IFRS 9 sur les prêts Freddie Mac : logistique contre LightGBM."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Yassine" }]
+keywords = ["IFRS 9", "ECL", "credit risk", "PD", "LGD", "survival analysis"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pyarrow>=15",
+    "scikit-learn>=1.4",
+    "lightgbm>=4.3",
+    "statsmodels>=0.14",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6"]
+eda = ["matplotlib>=3.8", "jupyter>=1.0"]
+
+[project.urls]
+Repository = "https://github.com/selyassine/ecl9"
+
+[project.scripts]
+ecl9-telecharger = "ecl9.telechargement:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ecl9"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "donnees: test qui a besoin des données téléchargées dans data/ (ignoré en CI)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "pipeline"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "NPY", "PD", "RUF"]
+ignore = [
+    "RUF001",  # caractères typographiques français dans les chaînes
+    "RUF002",
+    "RUF003",
+]
