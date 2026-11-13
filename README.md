@@ -25,9 +25,12 @@ et 25 % des défauts à 12 mois réellement observés. LightGBM classe un peu mi
 les prêts (AUC 0,815 contre 0,789 sur 2006-2010) et sous-estime moins (31 % des
 défauts contre 17 %). Le modèle de survie (semaine 3) montre pourquoi : sur 2000-2005, aucune
 sensibilité au chômage ni aux prix immobiliers n'est identifiable, même avec
-une contrainte de signe ([`survie.md`](rapport/resultats/survie.md)). L'effet
-sur la provision, et son intervalle de confiance, viendront avec la LGD et
-les scénarios. Détail :
+une contrainte de signe ([`survie.md`](rapport/resultats/survie.md)). La LGD
+(semaine 4) est sous-estimée d'un facteur 4 sur la crise (7,6 % prévus contre
+29,5 % réalisés). Au 31/12/2007, la provision LightGBM dépasse de 64 % celle de
+la logistique, mais les deux ne couvrent que 0,03 à 0,05 % de l'encours
+([`lgd_moteur.md`](rapport/resultats/lgd_moteur.md)). Le backtest, les
+scénarios et l'intervalle de confiance viendront ensuite. Détail :
 [`rapport/resultats/pd12.md`](rapport/resultats/pd12.md).
 
 ## État d'avancement
@@ -37,7 +40,7 @@ les scénarios. Détail :
 | 1 | Téléchargement, panneau prêt-mois, définitions figées, analyse exploratoire | fait |
 | 2 | PD à 12 mois : logistique puis LightGBM, validation hors période | [fait](rapport/resultats/pd12.md) |
 | 3 | PD à maturité par survie, variables macro | [fait](rapport/resultats/survie.md) |
-| 4 | LGD, EAD, moteur de calcul et tests à la main | moteur et EAD faits |
+| 4 | LGD, EAD, moteur de calcul et tests à la main | [fait](rapport/resultats/lgd_moteur.md) |
 | 5 | Stades, scénarios, backtest sur la crise, double calcul R | stades faits |
 | 6 | Bootstrap, note Quarto, README, mise en ligne | à faire |
 

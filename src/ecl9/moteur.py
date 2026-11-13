@@ -72,10 +72,12 @@ def projeter_hasards(
 
     age0 = prets["loan_age"].to_numpy(dtype=float)
     ages = age0[:, None] + np.arange(1, n_mois + 1)[None, :]
-    bandes = survie.bande_age(ages.ravel()).to_numpy().reshape(ages.shape)
-    bande0 = survie.bande_age(age0).to_numpy()
-    alpha = np.vectorize(lambda b: termes.age.get(b, 0.0), otypes=[float])
-    delta = alpha(bandes) - alpha(bande0)[:, None]
+    # Bandes d'âge par recherche dichotomique, même découpage que survie.bande_age.
+    etiquettes = ["0-6", "7-12", "13-24", "25-36", "37-48", "49-60", "61+"]
+    alpha = np.array([termes.age.get(e, 0.0) for e in etiquettes])
+    bornes = np.array(survie.BORNES_AGE[1:], dtype=float)
+    delta = alpha[np.searchsorted(bornes, ages, side="left")]
+    delta -= alpha[np.searchsorted(bornes, age0, side="left")][:, None]
 
     for v, (gamma, sigma) in termes.macro.items():
         if v == "ecart_taux":
