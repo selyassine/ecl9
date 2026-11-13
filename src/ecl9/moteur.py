@@ -92,12 +92,25 @@ def projeter_hasards(
 # ------------------------------------------------------------- calcul ECL
 
 
+def logit(h: np.ndarray) -> np.ndarray:
+    with np.errstate(divide="ignore"):
+        return np.log(h) - np.log1p(-h)
+
+
+def decaler(h: np.ndarray, delta) -> np.ndarray:
+    """Applique un écart de logit à une matrice de hasards (0 et 1 restent fixes)."""
+    with np.errstate(over="ignore", invalid="ignore"):
+        r = 1 / (1 + np.exp(-(logit(h) + delta)))
+    return np.where(h <= 0, 0.0, np.where(h >= 1, 1.0, r))
+
+
 def ancrer_matrice(h: np.ndarray, pd12: np.ndarray, horizon_ancrage: np.ndarray, iterations=80):
     """Version vectorisée de ``survie.ancrer`` : un facteur ``c`` par prêt (dichotomie)."""
     h = h.copy()
     n, m = h.shape
-    masque = np.arange(m)[None, :] < horizon_ancrage[:, None]
-    tete = np.where(masque, h, 0.0)
+    k = int(min(m, max(horizon_ancrage.max(initial=0), 0)))
+    masque = np.arange(k)[None, :] < horizon_ancrage[:, None]
+    tete = np.where(masque, h[:, :k], 0.0)  # seules les k premières colonnes comptent
 
     def pd_tete(c):
         return 1 - np.prod(1 - np.minimum(c[:, None] * tete, 1.0), axis=1)
@@ -113,7 +126,7 @@ def ancrer_matrice(h: np.ndarray, pd12: np.ndarray, horizon_ancrage: np.ndarray,
         sous = pd_tete(milieu) < pd12
         bas, haut = np.where(sous, milieu, bas), np.where(sous, haut, milieu)
     c = np.where(pd12 > 0, haut, 0.0)
-    h[masque] = np.minimum((c[:, None] * h)[masque], 1.0)
+    h[:, :k] = np.where(masque, np.minimum(c[:, None] * h[:, :k], 1.0), h[:, :k])
     return h
 
 
@@ -139,11 +152,14 @@ def provisions(
     lgd: np.ndarray,
     pd12: np.ndarray,
     hasards: np.ndarray,
+    ecart_logit: np.ndarray | float | None = None,
 ) -> np.ndarray:
     """Provision de chaque prêt (D-005 à D-008, D-024), taux en décimal.
 
     ``hasards`` couvre au moins la plus longue durée restante des stades 2.
-    En stade 3, la provision vaut LGD × CRD.
+    En stade 3, la provision vaut LGD × CRD. ``ecart_logit`` (prêts × mois)
+    est ajouté au logit des hasards **après** l'ancrage : c'est l'écart d'un
+    scénario au scénario central (D-036).
     """
     stade = np.asarray(stade)
     restants = np.asarray(mois_restants, dtype=int)
@@ -153,6 +169,8 @@ def provisions(
     if (horizon > n_mois).any():
         raise ValueError("hasards trop courts pour l'horizon des stades 2")
     h = ancrer_matrice(hasards, pd12, np.minimum(HORIZON_STADE1_MOIS, restants))
+    if ecart_logit is not None:
+        h = decaler(h, ecart_logit)
     survie_avant = np.cumprod(np.concatenate([np.ones((len(h), 1)), 1 - h[:, :-1]], axis=1), 1)
     marginales = survie_avant * h
     ead = echeancier_matrice(crd, taux_annuel, restants, n_mois)

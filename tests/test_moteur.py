@@ -88,3 +88,22 @@ def test_projection_vectorisee_egale_projection_ligne_a_ligne():
     for i, (_, pret) in enumerate(prets.iterrows()):
         attendu = survie.projeter(m, pret.drop(["loan_id", "defaut"]), arrete, trajectoire, 30)
         np.testing.assert_allclose(h[i], attendu, rtol=1e-10, atol=1e-14)
+
+
+def test_ecart_de_scenario_applique_apres_ancrage():
+    """D-036 : l'écart de logit d'un scénario déplace aussi la PD des 12 premiers mois."""
+    rng = np.random.default_rng(3)
+    n, mois = 4, 60
+    args = (
+        np.array([1, 1, 2, 2]),
+        np.full(n, 100_000.0),
+        np.full(n, 0.06),
+        np.array([60, 30, 60, 45]),
+        np.full(n, 0.3),
+        np.full(n, 0.02),
+        rng.uniform(0.001, 0.01, (n, mois)),
+    )
+    base = moteur.provisions(*args)
+    assert np.allclose(moteur.provisions(*args, ecart_logit=0.0), base)
+    choc = moteur.provisions(*args, ecart_logit=np.log(2.0))
+    assert (choc > base).all()

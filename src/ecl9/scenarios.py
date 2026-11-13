@@ -18,6 +18,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from ecl9.moteur import decaler  # noqa: F401  (réexporté)
+
 MOIS_CHOC = 12  # durée de la transition vers le niveau choqué
 MOIS_PRIX = 36  # au-delà, les prix immobiliers se stabilisent dans tous les scénarios
 
@@ -124,10 +126,3 @@ def surcouche(cltv0: np.ndarray, chomage_var12_0: float, traj: pd.DataFrame) -> 
         np.array([chomage_var12_0])
     )
     return d_cltv + d_chom[None, :]
-
-
-def decaler(h: np.ndarray, delta: np.ndarray) -> np.ndarray:
-    """Applique un écart de logit à une matrice de hasards."""
-    with np.errstate(divide="ignore"):
-        logit = np.log(h) - np.log1p(-h)
-    return 1 / (1 + np.exp(-(logit + delta)))

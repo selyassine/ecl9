@@ -544,3 +544,21 @@ publiée après la crise qu'elle couvre. La provision avec surcouche est publié
 Le tirage de D-033 est stratifié : 25 prêts en stade 1 et 25 en stade 2
 (critère de retard de l'étape 6), sans quoi presque tous seraient en stade 1.
 Le stade 3 (LGD × capital) est couvert par le contrôle sur prêts simulés.
+
+---
+
+## 2026-11-13 — Correction après le premier calcul des scénarios
+
+### D-036 Les scénarios s'appliquent après l'ancrage
+
+Premier calcul (publié dans `rapport/resultats/v1_trimestriel_scenarios.csv`) :
+les hasards de chaque scénario étaient ancrés sur la PD à 12 mois (D-024),
+qui ne dépend pas du scénario. L'ancrage effaçait donc tout effet des
+scénarios, et de la surcouche, sur les 12 premiers mois : la provision des
+prêts en stade 1 était identique dans les trois scénarios.
+
+Correction : les hasards du scénario central sont ancrés comme avant ; chaque
+scénario ajoute ensuite au logit ancré son écart au central, mois par mois
+(`logit h_s - logit h_central` pour le modèle de survie, plus l'écart de la
+surcouche le cas échéant). La PD à 12 mois du modèle reste la prévision du
+scénario central. Rien d'autre ne change.
