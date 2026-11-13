@@ -374,3 +374,54 @@ variable revient à fixer son coefficient à zéro, sans rien inventer.
   n'apporte aucune sensibilité que les données n'ont pas montrée. Si la
   variable des prix est retirée, les scénarios ne pourront agir sur la PD
   que par le chômage et les taux.
+
+---
+
+## 2026-11-13 — LGD, EAD et moteur : protocole, avant estimation
+
+### D-027 Résolution d'un défaut
+
+Pour chaque prêt en défaut au sens de D-001 (premier mois de défaut `d`), le
+suivi complet après `d` donne sa résolution :
+
+- **perte** : sortie avec un code 02, 03, 09 ou 15. La sévérité vaut
+  `actual_loss / zero_balance_removal_upb`, bornée à [0, 1]. Le dénominateur
+  est le capital retiré à la sortie, celui sur lequel Freddie Mac calcule la
+  perte ;
+- **régularisation** : remboursement (code 01), cession d'un prêt redevenu
+  performant (code 16), ou prêt encore actif avec moins de 3 mensualités de
+  retard à la fin de la fenêtre d'observation ;
+- **non résolu** : encore en retard de 3 mensualités ou plus à la fin de la
+  fenêtre, ou code 96. Exclu du calibrage.
+
+Un prêt régularisé puis de nouveau en défaut et liquidé compte comme une
+perte : c'est la sortie finale qui décide.
+
+### D-028 LGD en deux étapes : données et modèles
+
+- **Entraînement** : défauts survenus jusqu'à fin 2005 (millésimes
+  2000-2005), avec une résolution observée jusqu'à fin 2006. C'est la même
+  année de recul que la PD (D-010). Des résolutions plus tardives feraient
+  entrer dans la LGD les ventes de biens de la crise.
+- **Régularisation** : régression logistique de `P(régularisation)` sur la
+  LTV et le score à l'octroi, le ratio capital restant / capital initial, le
+  taux d'assurance hypothécaire et l'âge du prêt au défaut.
+- **Sévérité** : régression linéaire bornée à [0, 1] sur les mêmes variables,
+  estimée sur les seules pertes.
+- `LGD = (1 - P(régularisation)) × sévérité`.
+- **Validation** : défauts des millésimes 2006-2008 survenus de 2006 à 2010,
+  résolution observée sur tout l'historique disponible. On compare la LGD
+  moyenne prévue à la LGD réalisée, pondérée par le capital.
+
+### D-029 Moteur vectorisé
+
+Le hasard de survie est logistique, donc additif dans le logit :
+`logit h(i, k) = a_i + α(bande d'âge) + Σ γ_m·macro_m(t + k) + δ·écart_i(t + k)`.
+Le moteur calcule une fois le terme propre au prêt `a_i`, puis ajoute les
+termes d'âge et de macro mois par mois. Le résultat est identique à une
+prédiction ligne par ligne, et un test le vérifie à 1e-10 près. Pour chaque
+prêt, la suite du calcul est : ancrage (D-024), EAD (D-008), LGD (D-028),
+actualisation (D-006), puis la formule de D-007.
+
+Tant que les scénarios ne sont pas construits (semaine 5), la trajectoire
+macro est **figée** à sa valeur de l'arrêté.
