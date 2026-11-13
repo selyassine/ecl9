@@ -19,12 +19,10 @@ SORTIE = Path(__file__).resolve().parents[1] / "sorties" / "exploration"
 def main() -> None:
     SORTIE.mkdir(parents=True, exist_ok=True)
     e = pd.read_parquet(ENTREE / "echantillon_pd12.parquet")
-    o = pd.read_parquet(ENTREE / "octroi.parquet", columns=["loan_id", "cohorte"])
-    e = e.merge(o, on="loan_id", how="left", validate="many_to_one")
     e["annee_arrete"] = e["period"].dt.year
     table = (
         e.pivot_table(
-            index="cohorte",
+            index="annee_octroi",
             columns="annee_arrete",
             values="cible_defaut_12m",
             aggfunc="mean",
@@ -33,7 +31,7 @@ def main() -> None:
         .round(2)
     )
     table.to_csv(SORTIE / "taux_defaut_12m.csv")
-    print("Taux de défaut à 12 mois (%), cohorte × année d'arrêté")
+    print("Taux de défaut à 12 mois (%), millésime × année d'arrêté")
     print(table.to_string())
 
 

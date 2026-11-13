@@ -49,7 +49,7 @@ def suivi(tmp_path):
     # E : vente à découvert (code 03) en 2001-07, statut XX juste avant.
     lignes += [_ligne_suivi("E", m, 1000, "0") for m in _mois("2001-01", 5)]
     lignes += [_ligne_suivi("E", "200106", 1000, "XX"), _ligne_suivi("E", "200107", 0, "2", "03")]
-    chemin = tmp_path / "sample_svcg_2001.txt"
+    chemin = tmp_path / "sample_perf_2001.txt"
     chemin.write_text("\n".join(lignes) + "\n")
     return dn.lire_suivi(chemin)
 
@@ -86,7 +86,7 @@ def test_panneau_arrete_au_premier_defaut(suivi):
 def test_echantillon_pd12(suivi):
     e = dn.echantillon_pd12(dn.construire_panneau(suivi))
     cible = {(r.loan_id, str(r.period)): r.cible_defaut_12m for r in e.itertuples(index=False)}
-    # Dernier mois du jeu : 2002-12. Arrêtés retenus : fenêtre complète, ou défaut observé.
+    # Dernier mois du jeu : 2002-12. Seuls les arrêtés à fenêtre complète sont retenus.
     assert cible == {
         ("A", "2001-03"): 0,
         ("A", "2001-06"): 0,
@@ -127,3 +127,24 @@ def test_sentinelles_octroi(tmp_path):
     assert o["occupancy_status"].isna().all()
     assert o.loc[0, "orig_ltv"] == 80
     assert o.loc[0, "cohorte"] == 2001
+
+
+def test_fenetre_incomplete_exclue_meme_en_cas_de_defaut():
+    # Jeu arrêté en 2002-12 ; prêt en défaut en 2002-09. L'arrêté 2002-06 n'a que
+    # 6 mois de recul : il est retiré, sinon seuls les défauts resteraient.
+    periodes = pd.period_range("2001-01", "2002-09", freq="M")
+    p = pd.DataFrame({"loan_id": "F", "period": periodes, "defaut": 0})
+    p.loc[p.index[-1], "defaut"] = 1
+    sain = pd.DataFrame(
+        {"loan_id": "G", "period": pd.period_range("2001-01", "2002-12", freq="M"), "defaut": 0}
+    )
+    e = dn.echantillon_pd12(pd.concat([p, sain], ignore_index=True))
+    retenus = set(zip(e["loan_id"], e["period"].astype(str), strict=True))
+    assert ("F", "2001-12") in retenus  # fenêtre 2002-01..2002-12 complète
+    assert ("F", "2002-06") not in retenus
+    assert (
+        e.loc[
+            e["loan_id"].eq("F") & e["period"].astype(str).eq("2001-12"), "cible_defaut_12m"
+        ].item()
+        == 1
+    )

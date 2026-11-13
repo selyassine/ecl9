@@ -30,7 +30,7 @@ connexion dans le navigateur, donc à la main.
 ```
 data/
 ├── brut/
-│   ├── freddie/   sample_AAAA.zip, sample_orig_AAAA.txt, sample_svcg_AAAA.txt
+│   ├── freddie/   sample_AAAA.zip, sample_orig_AAAA.txt, sample_perf_AAAA.txt
 │   └── fred/      UNRATE.csv, CSUSHPISA.csv, MORTGAGE30US.csv, DGS10.csv
 └── intermediaire/ panneau prêt-mois au format Parquet (pipeline)
 ```

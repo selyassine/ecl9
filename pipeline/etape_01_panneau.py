@@ -1,8 +1,8 @@
 """Étape 1 : fichiers bruts Freddie Mac → panneau prêt-mois et échantillon PD 12 mois.
 
-Entrées  : data/brut/freddie/sample_{orig,svcg}_AAAA.txt
+Entrées  : data/brut/freddie/sample_{orig,perf}_AAAA.txt
 Sorties  : data/intermediaire/octroi.parquet
-           data/intermediaire/panneau.parquet
+           data/intermediaire/panneau/millesime_AAAA.parquet (un fichier par millésime)
            data/intermediaire/echantillon_pd12.parquet
 """
 
@@ -33,19 +33,23 @@ def main() -> None:
     annees = lire_manifeste()["freddie_mac"]["annees"]
     SORTIE.mkdir(parents=True, exist_ok=True)
 
-    octroi = pd.concat(
-        [donnees.lire_octroi(BRUT / f"sample_orig_{a}.txt") for a in annees], ignore_index=True
-    )
-    panneaux = [
-        donnees.construire_panneau(donnees.lire_suivi(BRUT / f"sample_svcg_{a}.txt"))
-        for a in annees
-    ]
-    panneau = pd.concat(panneaux, ignore_index=True)
-    echantillon = donnees.echantillon_pd12(panneau)
+    (SORTIE / "panneau").mkdir(exist_ok=True)
+    octrois, echantillons = [], []
+    for annee in annees:
+        o = donnees.lire_octroi(BRUT / f"sample_orig_{annee}.txt")
+        o["annee_octroi"] = annee  # millésime du fichier (D-016)
+        p = donnees.construire_panneau(donnees.lire_suivi(BRUT / f"sample_perf_{annee}.txt"))
+        p["annee_octroi"] = annee
+        echantillons.append(donnees.echantillon_pd12(p))
+        octrois.append(o)
+        print(
+            f"{annee} : {len(o):,} prêts, {len(p):,} prêts-mois, {int(p['defaut'].sum()):,} défauts"
+        )
+        _parquet(p, SORTIE / "panneau" / f"millesime_{annee}.parquet")
+        del p
 
-    _parquet(octroi, SORTIE / "octroi.parquet")
-    _parquet(panneau, SORTIE / "panneau.parquet")
-    _parquet(echantillon, SORTIE / "echantillon_pd12.parquet")
+    _parquet(pd.concat(octrois, ignore_index=True), SORTIE / "octroi.parquet")
+    _parquet(pd.concat(echantillons, ignore_index=True), SORTIE / "echantillon_pd12.parquet")
 
 
 if __name__ == "__main__":

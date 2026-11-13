@@ -23,7 +23,7 @@ def _deposer_archive(dossier: Path, annee: int) -> Path:
     archive = cible / f"sample_{annee}.zip"
     with zipfile.ZipFile(archive, "w") as z:
         z.writestr(f"sample_orig_{annee}.txt", "750|200001|N\n")
-        z.writestr(f"sample_svcg_{annee}.txt", "F100Q1000001|200002|100000|0\n")
+        z.writestr(f"sample_perf_{annee}.txt", "F100Q1000001|200002|100000|0\n")
     return archive
 
 
@@ -47,7 +47,7 @@ def test_archives_deposees_a_la_main(dossier):
     assert set(t.lire_verrou(dossier)["fichiers"]) == {
         "brut/freddie/sample_2005.zip",
         "brut/freddie/sample_orig_2005.txt",
-        "brut/freddie/sample_svcg_2005.txt",
+        "brut/freddie/sample_perf_2005.txt",
     }
     assert t.verifier(dossier) == []
 

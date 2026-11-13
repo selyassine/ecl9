@@ -1,7 +1,8 @@
 """Lecture des fichiers Freddie Mac et construction du panneau prêt-mois.
 
 Les noms de colonnes suivent le guide utilisateur du *Single-Family Loan-Level
-Dataset* (fichiers séparés par « | », sans en-tête). Le nombre de colonnes a
+Dataset*, version de juillet 2026 : 31 champs à l'octroi, 35 au suivi mensuel
+(fichiers séparés par « | », sans en-tête). Le nombre de colonnes a
 augmenté au fil des versions : la lecture nomme les colonnes présentes dans
 l'ordre et signale un fichier plus large que le schéma connu.
 """
@@ -46,14 +47,13 @@ COLONNES_OCTROI = (
     "orig_loan_term",
     "num_borrowers",
     "seller_name",
-    "servicer_name",
     "super_conforming",
     "pre_harp_loan_id",
     "program_indicator",
     "harp_indicator",
     "property_valuation_method",
     "interest_only",
-    "mi_cancellation",
+    "vantage_score",
 )
 
 COLONNES_SUIVI = (
@@ -89,11 +89,15 @@ COLONNES_SUIVI = (
     "borrower_assistance_status",
     "current_month_modification_cost",
     "interest_bearing_upb",
+    "mi_cancellation",
+    "servicer_name",
+    "bankruptcy_cramdown_costs",
 )
 
 # Codes sentinelles convertis en valeurs manquantes (D-015).
 SENTINELLES_OCTROI = {
     "credit_score": 9999,
+    "vantage_score": 9999,
     "mi_pct": 999,
     "orig_cltv": 999,
     "orig_dti": 999,
@@ -126,14 +130,51 @@ _TEXTE = {
 }
 
 
-def _lire(chemin: Path, colonnes: tuple[str, ...]) -> pd.DataFrame:
-    brut = pd.read_csv(chemin, sep="|", header=None, dtype=str, keep_default_na=False)
-    if brut.shape[1] > len(colonnes):
+COLONNES_SUIVI_UTILES = (
+    "loan_id",
+    "period",
+    "current_upb",
+    "delinquency_status",
+    "loan_age",
+    "remaining_months_to_maturity",
+    "modification_flag",
+    "zero_balance_code",
+    "zero_balance_date",
+    "current_interest_rate",
+    "net_sale_proceeds",
+    "expenses",
+    "actual_loss",
+    "eltv",
+    "zero_balance_removal_upb",
+)
+
+
+def _largeur(chemin: Path) -> int:
+    with open(chemin, encoding="latin-1") as f:
+        return f.readline().rstrip("\n").count("|") + 1
+
+
+def _lire(
+    chemin: Path, colonnes: tuple[str, ...], utiles: tuple[str, ...] | None = None
+) -> pd.DataFrame:
+    largeur = _largeur(chemin)
+    if largeur > len(colonnes):
         raise ValueError(
-            f"{Path(chemin).name} : {brut.shape[1]} colonnes, schéma connu de "
+            f"{Path(chemin).name} : {largeur} colonnes, schéma connu de "
             f"{len(colonnes)}. Mettre à jour le schéma d'après le guide Freddie Mac."
         )
-    brut.columns = list(colonnes[: brut.shape[1]])
+    noms = list(colonnes[:largeur])
+    retenues = [n for n in noms if utiles is None or n in utiles]
+    brut = pd.read_csv(
+        chemin,
+        sep="|",
+        header=None,
+        names=noms,
+        usecols=retenues,
+        dtype=str,
+        keep_default_na=False,
+        encoding="latin-1",
+    )
     brut = brut.replace({"": pd.NA})
     for col in brut.columns:
         if col not in _TEXTE and not col.endswith(("_name", "_flag")):
@@ -145,7 +186,7 @@ def _lire(chemin: Path, colonnes: tuple[str, ...]) -> pd.DataFrame:
 
 def _mois(serie: pd.Series) -> pd.Series:
     """Date AAAAMM en période mensuelle pandas."""
-    return pd.PeriodIndex(serie.astype("string"), freq="M").to_series(index=serie.index)
+    return pd.to_datetime(serie.astype("string"), format="%Y%m").dt.to_period("M")
 
 
 def lire_octroi(chemin: Path) -> pd.DataFrame:
@@ -162,9 +203,15 @@ def lire_octroi(chemin: Path) -> pd.DataFrame:
     return df
 
 
-def lire_suivi(chemin: Path) -> pd.DataFrame:
-    """Suivi mensuel, une ligne par prêt et par mois."""
-    df = _lire(chemin, COLONNES_SUIVI)
+def lire_suivi(
+    chemin: Path, utiles: tuple[str, ...] | None = COLONNES_SUIVI_UTILES
+) -> pd.DataFrame:
+    """Suivi mensuel, une ligne par prêt et par mois.
+
+    Par défaut, seules les colonnes utiles au modèle sont chargées (le fichier
+    complet d'une année dépasse 400 Mo) ; ``utiles=None`` charge tout.
+    """
+    df = _lire(chemin, COLONNES_SUIVI, utiles)
     df["period"] = _mois(df["period"])
     return df
 
@@ -212,7 +259,7 @@ def echantillon_pd12(
     Une ligne par prêt et par arrêté de fin de trimestre où il est actif et
     non en défaut. Un prêt soldé sans défaut dans la fenêtre vaut 0. Les
     arrêtés dont la fenêtre dépasse la dernière date observée du jeu de
-    données sont retirés, faute de recul suffisant.
+    données sont tous retirés, faute de recul suffisant.
     """
     rang = panneau["period"].map(lambda p: p.ordinal)
     mois_defaut = rang.where(panneau["defaut"].eq(1)).groupby(panneau["loan_id"]).transform("max")
@@ -224,5 +271,7 @@ def echantillon_pd12(
     r = rang[arretes.index]
     d = mois_defaut[arretes.index]
     arretes["cible_defaut_12m"] = ((d > r) & (d <= r + fenetre)).astype(int)
-    assez_de_recul = (r + fenetre <= dernier_mois_jeu) | arretes["cible_defaut_12m"].eq(1)
+    # Pas d'exception pour les défauts observés : garder un arrêté incomplet
+    # seulement s'il a fait défaut biaiserait la cible vers 1.
+    assez_de_recul = r + fenetre <= dernier_mois_jeu
     return arretes[assez_de_recul].reset_index(drop=True)

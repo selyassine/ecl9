@@ -23,7 +23,169 @@
       "octets": 14226,
       "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=UNRATE",
       "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_2000.zip": {
+      "sha256": "511c105da3caf34a19093a207b1e4ffc3b7b0f045db3d4c52a6e584c5e78f736",
+      "octets": 20320360,
+      "source": "https://claritydownload.fmapps.freddiemac.com/CRT/ (sample_2000.zip)",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_2001.zip": {
+      "sha256": "f4d9f32e37c43ac10dbd57bc0cadc5aa55e390a3359fadc244a19890480a7d38",
+      "octets": 28577890,
+      "source": "https://claritydownload.fmapps.freddiemac.com/CRT/ (sample_2001.zip)",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_2002.zip": {
+      "sha256": "2242e100a42e02387d0114779b1f66b046abd7cfaabedc0897520d5266274318",
+      "octets": 36332099,
+      "source": "https://claritydownload.fmapps.freddiemac.com/CRT/ (sample_2002.zip)",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_2003.zip": {
+      "sha256": "2b113dd630978eb907f38743de3d89eb3047a0d916be37179d7d3f7b3923c3af",
+      "octets": 59261313,
+      "source": "https://claritydownload.fmapps.freddiemac.com/CRT/ (sample_2003.zip)",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_2004.zip": {
+      "sha256": "b3494418210179db76896464fcddc617bbb6921279bcbd72feb2b3cc233e3f76",
+      "octets": 57846491,
+      "source": "https://claritydownload.fmapps.freddiemac.com/CRT/ (sample_2004.zip)",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_2005.zip": {
+      "sha256": "27a82584e56ae9c061a9ff58940be6783da585158a4234e2480bb4a9126a1803",
+      "octets": 57057291,
+      "source": "https://claritydownload.fmapps.freddiemac.com/CRT/ (sample_2005.zip)",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_2006.zip": {
+      "sha256": "5a704b2ba4b8bfe4571331dccf6ed6cdd4b1e4181ede434932e2769518abee1a",
+      "octets": 47914434,
+      "source": "https://claritydownload.fmapps.freddiemac.com/CRT/ (sample_2006.zip)",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_2007.zip": {
+      "sha256": "7704cd03e7ddc2a373fd34fea0f0286d80863db19c7d4d9e6d32e5e0e03736b3",
+      "octets": 45825700,
+      "source": "https://claritydownload.fmapps.freddiemac.com/CRT/ (sample_2007.zip)",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_2008.zip": {
+      "sha256": "e279a97b0f899b5736a1a657b8137afb0aa1c22fc3208a606459f6db7e77d4f7",
+      "octets": 36923529,
+      "source": "https://claritydownload.fmapps.freddiemac.com/CRT/ (sample_2008.zip)",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_orig_2000.txt": {
+      "sha256": "2c4a87889fcc1c5f867e938a70855151b3e1a05cd35838db92d139a9aeea5544",
+      "octets": 6430865,
+      "source": "sample_2000.zip!sample_orig_2000.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_orig_2001.txt": {
+      "sha256": "2856ad07eb17e658b7fd4c58618f0215103e9881a1fde1dfd5b3fad7924bef08",
+      "octets": 6453658,
+      "source": "sample_2001.zip!sample_orig_2001.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_orig_2002.txt": {
+      "sha256": "e34672141357b34fafdfbd56b4b7d9d4e8d3b48534d23fabc4685082db696b2c",
+      "octets": 6435532,
+      "source": "sample_2002.zip!sample_orig_2002.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_orig_2003.txt": {
+      "sha256": "5421799e7db4555525abf5b4d2c816790d2afc770745492ea7e2f80a7725ccd5",
+      "octets": 6457044,
+      "source": "sample_2003.zip!sample_orig_2003.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_orig_2004.txt": {
+      "sha256": "86bffb230d5f77e033cab3df2c6099d590c42a0ef8e3d4c44ea02a36a572b3f9",
+      "octets": 6421133,
+      "source": "sample_2004.zip!sample_orig_2004.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_orig_2005.txt": {
+      "sha256": "4c3699a46afa75272e31af9a6a3d0eb48e40e8cf5e9c1ceff07b0f0c33da4f53",
+      "octets": 6418225,
+      "source": "sample_2005.zip!sample_orig_2005.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_orig_2006.txt": {
+      "sha256": "17057fd755bd208c97f97a3435174a31aaa763447410f66123756fcd38008be0",
+      "octets": 6411591,
+      "source": "sample_2006.zip!sample_orig_2006.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_orig_2007.txt": {
+      "sha256": "94ea24e3502fb31466ea89c3c94f7a1d70d64ae3466288d0a6f5ce2286fbc687",
+      "octets": 6390439,
+      "source": "sample_2007.zip!sample_orig_2007.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_orig_2008.txt": {
+      "sha256": "1bbe0bb8af5f6f1ea8c466afba5f41aee557389fead90faa6c293c6971abbe56",
+      "octets": 6367690,
+      "source": "sample_2008.zip!sample_orig_2008.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_perf_2000.txt": {
+      "sha256": "fdd6aa027a013421876b66ac46fa91e27c73e2ea70b38c09ad2939d65416ddf6",
+      "octets": 168533970,
+      "source": "sample_2000.zip!sample_perf_2000.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_perf_2001.txt": {
+      "sha256": "5b22b03db8ec4cedd6283de37f01f0ed27b62694ca0a428a97fd4d28e6e50aa2",
+      "octets": 229943225,
+      "source": "sample_2001.zip!sample_perf_2001.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_perf_2002.txt": {
+      "sha256": "e4c7270e8c6ff14f9fd3691dcd656984d1eec9388692f4522080c59e36861381",
+      "octets": 286285230,
+      "source": "sample_2002.zip!sample_perf_2002.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_perf_2003.txt": {
+      "sha256": "a386ccba4ef3038616a459bd8b33d5cda3931ea7e653b316189c4c97ff811cd9",
+      "octets": 465418461,
+      "source": "sample_2003.zip!sample_perf_2003.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_perf_2004.txt": {
+      "sha256": "24d073cbda0993323bfb857bd949a7a4e8a0b8900cf366ac07fc77e13e3927f1",
+      "octets": 456169698,
+      "source": "sample_2004.zip!sample_perf_2004.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_perf_2005.txt": {
+      "sha256": "b967e463d926465d5129e46917014ee7922e3d0d01366759e5983faf74213931",
+      "octets": 447592535,
+      "source": "sample_2005.zip!sample_perf_2005.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_perf_2006.txt": {
+      "sha256": "09344f649383de48ba4838eeacc458ba8f946a90f850ed9b2ecdb4c724568e97",
+      "octets": 371120974,
+      "source": "sample_2006.zip!sample_perf_2006.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_perf_2007.txt": {
+      "sha256": "058513efa491d3309a9d981f48c8561c37da40c42f93f2ef1e7c556d366d2173",
+      "octets": 348461816,
+      "source": "sample_2007.zip!sample_perf_2007.txt",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/freddie/sample_perf_2008.txt": {
+      "sha256": "698fd969075619202d12b4e4a85e29d660d18df44c7535fa28ee215a35368c66",
+      "octets": 281381854,
+      "source": "sample_2008.zip!sample_perf_2008.txt",
+      "obtenu_le": "2026-11-13"
     }
   },
-  "manifeste_sha256": "1ac794865f8d5b660f820cfa404a9e229b0ba013c309e73faf0c8f9bb987ef00"
+  "manifeste_sha256": "4a212c30a1e17179c492e575387329dc625bcf40b2111ad5eadaaf45b2a457e6"
 }

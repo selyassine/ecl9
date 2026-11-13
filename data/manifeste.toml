@@ -16,7 +16,7 @@ fichier_modele = "sample_{annee}.zip"
 annees = [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008]
 dossier = "brut/freddie"
 # Chaque archive contient sample_orig_{annee}.txt (octroi) et
-# sample_svcg_{annee}.txt (suivi mensuel), séparés par « | », sans en-tête.
+# sample_perf_{annee}.txt (suivi mensuel), séparés par « | », sans en-tête.
 licence = "Inscription gratuite ; redistribution interdite."
 
 [fred]
