@@ -259,3 +259,35 @@ séparément sur les arrêtés de 2006 à 2010 :
   de la somme des PD au nombre de défauts ;
 - PSI de la distribution des PD entre l'entraînement et le test ;
 - score de Brier.
+
+---
+
+## 2026-11-13 — Correction du réglage de LightGBM après une fuite détectée
+
+### D-022 Validation de réglage séparée par prêt
+
+**Constat (première estimation, résultats conservés dans
+`rapport/resultats/v1_pd12_*.csv`).** LightGBM, réglé selon D-020, atteint une
+AUC de 0,998 sur l'entraînement contre 0,789 sur le test : il a mémorisé des
+prêts. La cause est dans D-020 : un même prêt figure dans l'apprentissage
+(arrêtés jusqu'à fin 2004) et dans la validation (arrêtés de 2005), et les
+fenêtres de 12 mois se chevauchent. Un défaut de 2005 est donc déjà dans la
+cible de l'arrêté de décembre 2004 du même prêt. L'arrêt précoce récompense
+alors la mémorisation (1 062 itérations à 63 feuilles), et des variables
+quasi identifiantes comme le capital initial prennent 8 % du gain.
+
+Ce défaut a été repéré par l'écart entre l'entraînement et la validation. Les
+mesures de test de cette première version ont toutefois été vues, et elles
+sont publiées telles quelles :
+
+| Modèle (v1) | AUC test | AUC arrêtés 2006-2010 | Attendu / observé 2006-2010 |
+| --- | --- | --- | --- |
+| Logistique | 0,779 | 0,789 | 0,17 |
+| LightGBM | 0,789 | 0,799 | 0,19 |
+
+**Correction.** 20 % des prêts d'entraînement, tirés par un hachage stable de
+leur identifiant, forment la validation (leurs arrêtés de 2005). Les 80 %
+restants forment l'apprentissage (leurs arrêtés jusqu'à fin 2004). Aucun prêt
+n'est des deux côtés. Le reste de D-020 est inchangé : grille, arrêt précoce
+et réestimation finale sur tout l'entraînement. La logistique n'est pas
+concernée, car elle n'a pas de réglage.
