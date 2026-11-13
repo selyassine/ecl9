@@ -347,3 +347,30 @@ Sur les millésimes 2006-2008, mois de 2006 à 2010 :
   décembre 2005. L'écart entre les deux mesure ce que la macro du modèle
   explique de la crise ;
 - AUC au niveau prêt-mois.
+
+---
+
+## 2026-11-13 — Sensibilité macro de la survie (choix de l'auteur)
+
+### D-026 Contrainte de signe sur les coefficients macro
+
+**Constat (D-025, `rapport/resultats/survie.md`)** : estimé sur 2000-2005, le
+coefficient de la variation des prix immobiliers est positif. Avec la macro
+réalisée, le modèle prévoit alors moins de défauts en 2006-2010 qu'avec une
+macro figée. Une période sans baisse des prix ne permet pas d'apprendre
+l'effet d'une baisse.
+
+**Choix** : chaque variable macro a un signe attendu. Le chômage, sa variation
+et l'écart de taux augmentent le hasard ; la variation des prix le diminue.
+Le taux à 10 ans n'est pas contraint. Les variables de signe contraire sont
+retirées une à une, en commençant par la plus fautive, et le modèle est
+réestimé jusqu'à ce que tous les signes soient conformes. Retirer une
+variable revient à fixer son coefficient à zéro, sans rien inventer.
+
+**Conséquences** :
+- le modèle contraint devient le modèle de survie utilisé par le moteur ;
+- le modèle libre reste estimé, et ses résultats restent publiés à côté ;
+- la contrainte empêche une sensibilité de mauvais signe, mais elle
+  n'apporte aucune sensibilité que les données n'ont pas montrée. Si la
+  variable des prix est retirée, les scénarios ne pourront agir sur la PD
+  que par le chômage et les taux.

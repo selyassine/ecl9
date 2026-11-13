@@ -66,67 +66,70 @@ def main() -> None:
         f"Entraînement : {len(app):,} prêts-mois, {int(app['defaut'].sum()):,} défauts, "
         f"échantillon pondéré {len(ech):,} ({time.time() - t0:.0f} s)"
     )
-    modele = survie.ajuster(ech)
+    libre = survie.ajuster(ech)
+    contraint, retirees = survie.ajuster_avec_signes(ech)
+    print(f"Variables macro retirées par la contrainte de signe (D-026) : {retirees or 'aucune'}")
+    modeles = {"libre": libre, "contraint": contraint}
     with open(SORTIE / "modele.pkl", "wb") as f:
-        pickle.dump(modele, f)
-    app["h"] = survie.hasards(modele, app)
-    print(f"Modèle estimé ({time.time() - t0:.0f} s)")
+        pickle.dump({**modeles, "retenu": "contraint", "retirees": retirees}, f)
+    print(f"Modèles estimés ({time.time() - t0:.0f} s)")
 
     test = lire(ANNEES_TEST, pd.Period("2006-01", "M"), FIN_TEST, octroi, m)
-    test["h_macro_realisee"] = survie.hasards(modele, test)
+    test["annee"] = test["period"].dt.year
     figee = test.copy()
     decembre_2005 = m.loc[fin_app]
     for c in decembre_2005.index:
         figee[c] = decembre_2005[c]
     figee["ecart_taux"] = figee["current_interest_rate"] - decembre_2005["taux_30a"]
-    test["h_macro_figee"] = survie.hasards(modele, figee)
-    del figee
-    test["annee"] = test["period"].dt.year
     print(f"Test : {len(test):,} prêts-mois ({time.time() - t0:.0f} s)")
 
-    lignes = []
-    for nom, d, col in [
-        ("entrainement", app, "h"),
-        ("test, macro réalisée", test, "h_macro_realisee"),
-        ("test, macro figée à déc. 2005", test, "h_macro_figee"),
-    ]:
-        lignes.append(
-            {
-                "perimetre": nom,
-                "prets_mois": len(d),
-                "observes": int(d["defaut"].sum()),
-                "attendus": float(d[col].sum()),
-                "attendu_sur_observe": float(d[col].sum() / d["defaut"].sum()),
-                "auc": validation.auc(d["defaut"], d[col]),
-            }
+    lignes, annees, millesimes, coefs = [], [], [], []
+    for nom, modele in modeles.items():
+        app["h"] = survie.hasards(modele, app)
+        test["h_macro_realisee"] = survie.hasards(modele, test)
+        test["h_macro_figee"] = survie.hasards(modele, figee)
+        for perimetre, d, col in [
+            ("entrainement", app, "h"),
+            ("test, macro réalisée", test, "h_macro_realisee"),
+            ("test, macro figée à déc. 2005", test, "h_macro_figee"),
+        ]:
+            lignes.append(
+                {
+                    "modele": nom,
+                    "perimetre": perimetre,
+                    "prets_mois": len(d),
+                    "observes": int(d["defaut"].sum()),
+                    "attendus": float(d[col].sum()),
+                    "attendu_sur_observe": float(d[col].sum() / d["defaut"].sum()),
+                    "auc": validation.auc(d["defaut"], d[col]),
+                }
+            )
+        a = attendus_observes(test, "h_macro_realisee", "annee").join(
+            attendus_observes(test, "h_macro_figee", "annee")[["attendus", "attendu_sur_observe"]],
+            rsuffix="_macro_figee",
         )
+        annees.append(a.assign(modele=nom))
+        millesimes.append(
+            attendus_observes(test, "h_macro_realisee", "annee_octroi").assign(modele=nom)
+        )
+        coefs.append(survie.coefficients_macro(modele).rename(nom))
+        if nom == "contraint":
+            table = app.groupby("bande_age").agg(
+                prets_mois=("defaut", "size"), observe=("defaut", "mean"), ajuste=("h", "mean")
+            )
+            table["observe_annualise"] = 1 - (1 - table["observe"]) ** 12
+            table.to_csv(RESULTATS / "survie_table_age.csv")
+
     mesures = pd.DataFrame(lignes)
     mesures.to_csv(RESULTATS / "survie_mesures.csv", index=False)
-
-    par_annee = attendus_observes(test, "h_macro_realisee", "annee").join(
-        attendus_observes(test, "h_macro_figee", "annee")[["attendus", "attendu_sur_observe"]],
-        rsuffix="_macro_figee",
-    )
+    par_annee = pd.concat(annees)
     par_annee.to_csv(RESULTATS / "survie_par_annee.csv")
-    par_millesime = attendus_observes(test, "h_macro_realisee", "annee_octroi")
-    par_millesime.to_csv(RESULTATS / "survie_par_millesime.csv")
-
-    # Table de mortalité : hasard moyen observé et ajusté par bande d'âge (entraînement).
-    table = app.groupby("bande_age").agg(
-        prets_mois=("defaut", "size"), observe=("defaut", "mean"), ajuste=("h", "mean")
-    )
-    table["observe_annualise"] = 1 - (1 - table["observe"]) ** 12
-    table.to_csv(RESULTATS / "survie_table_age.csv")
-
-    # Coefficients standardisés de la macro.
-    noms = modele.named_steps["preparation"].get_feature_names_out()
-    coef = pd.Series(modele.named_steps["logit"].coef_[0], index=noms)
-    coef_macro = coef[[f"num__{v}" for v in survie.VARIABLES_MACRO]]
-    coef_macro.rename("coefficient_standardise").to_csv(RESULTATS / "survie_coef_macro.csv")
+    pd.concat(millesimes).to_csv(RESULTATS / "survie_par_millesime.csv")
+    coef_macro = pd.concat(coefs, axis=1)
+    coef_macro.to_csv(RESULTATS / "survie_coef_macro.csv")
 
     print(mesures.round(4).to_string(index=False))
     print(par_annee.round(3).to_string())
-    print(par_millesime.round(3).to_string())
     print(table.round(5).to_string())
     print(coef_macro.round(3).to_string())
     print(f"Terminé en {time.time() - t0:.0f} s")

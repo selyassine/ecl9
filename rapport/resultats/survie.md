@@ -53,3 +53,33 @@ Cela touche directement la semaine 5. Les scénarios déplacent la PD par la
 macro : avec ces coefficients, un scénario défavorable sur les prix
 **baisserait** la provision. Le traitement retenu sera consigné dans le
 journal des décisions avant la construction des scénarios.
+
+## Après contrainte de signe (D-026)
+
+Les variables retirées, dans l'ordre, sont la variation des prix (+0,16), puis
+la variation du chômage et le chômage, devenus négatifs une fois les prix
+retirés. Il reste le taux à 10 ans (+0,04) et l'écart entre le taux du prêt
+et le taux du marché (+0,29).
+
+| Modèle | A/O entraînement | A/O test, macro réalisée | A/O test, macro figée | AUC test |
+| --- | --- | --- | --- | --- |
+| Libre | 0,95 | 0,16 | 0,22 | 0,794 |
+| Contraint (retenu) | 1,01 | **0,27** | 0,21 | 0,784 |
+
+| Année | Observés | Attendus contraint, macro réalisée | A/O |
+| --- | --- | --- | --- |
+| 2006 | 41 | 67 | 1,64 |
+| 2007 | 477 | 327 | 0,69 |
+| 2008 | 2 024 | 670 | 0,33 |
+| 2009 | 5 336 | 1 124 | 0,21 |
+| 2010 | 4 244 | 1 094 | 0,26 |
+
+Le modèle contraint va désormais dans le bon sens : la macro réalisée
+fait mieux que la macro figée, avec 27 % des défauts prévus contre 21 %. Le
+gain vient entièrement de l'écart de taux. En 2008-2010, les taux du marché
+baissent, mais les emprunteurs fragiles ne peuvent pas refinancer et gardent
+un taux supérieur au marché. Les données de 2000-2005 ne donnent **aucune
+sensibilité positive au chômage ni aux prix immobiliers**. Les scénarios de
+la semaine 5 ne pourront donc pas agir sur la PD par ces deux variables, sauf
+à introduire une sensibilité extérieure aux données. Ce choix sera alors
+consigné à part.
