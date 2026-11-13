@@ -41,7 +41,7 @@ def test_archives_deposees_a_la_main(dossier):
     _deposer_archive(dossier, 2005)
     verrou = t.lire_verrou(dossier)
 
-    t.obtenir_freddie(m, verrou, dossier)  # aucune connexion : l'archive est là
+    t.obtenir_freddie(m, verrou, dossier)  # archive déposée à la main
     t.ecrire_verrou(verrou, dossier)
 
     assert set(t.lire_verrou(dossier)["fichiers"]) == {
@@ -66,11 +66,9 @@ def test_fichier_modifie_detecte(dossier):
         t.consigner(dossier / "brut/freddie/sample_orig_2006.txt", "x", verrou, dossier)
 
 
-def test_identifiants_absents(dossier, monkeypatch):
-    monkeypatch.delenv("FREDDIE_USER", raising=False)
-    monkeypatch.delenv("FREDDIE_PASSWORD", raising=False)
+def test_archives_absentes(dossier):
     m = t.lire_manifeste(dossier)
-    with pytest.raises(t.ErreurTelechargement, match="FREDDIE_USER"):
+    with pytest.raises(t.ErreurTelechargement, match="claritydownload"):
         t.obtenir_freddie(m, t.lire_verrou(dossier), dossier)
 
 

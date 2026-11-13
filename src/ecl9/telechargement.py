@@ -1,7 +1,8 @@
 """Téléchargement des données décrites dans ``data/manifeste.toml``.
 
-Les identifiants Freddie Mac sont lus dans les variables d'environnement
-``FREDDIE_USER`` et ``FREDDIE_PASSWORD`` et ne sont jamais écrits sur disque.
+Les séries FRED sont téléchargées directement. Les archives Freddie Mac,
+servies par le portail Clarity derrière une connexion, sont déposées à la main
+puis décompressées et vérifiées ici.
 Chaque fichier obtenu est consigné avec son empreinte SHA-256 dans
 ``data/manifeste.lock.json``.
 """
@@ -11,7 +12,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import sys
 import tomllib
 import zipfile
@@ -106,30 +106,6 @@ def _telecharger(session: requests.Session, url: str, cible: Path) -> None:
     temporaire.replace(cible)
 
 
-def connexion_freddie(conf: dict) -> requests.Session:
-    utilisateur = os.environ.get("FREDDIE_USER")
-    mot_de_passe = os.environ.get("FREDDIE_PASSWORD")
-    if not utilisateur or not mot_de_passe:
-        raise ErreurTelechargement(
-            "Définis FREDDIE_USER et FREDDIE_PASSWORD (voir data/README.md), "
-            "ou dépose les archives à la main dans data/brut/freddie/."
-        )
-    session = requests.Session()
-    r = session.post(
-        conf["connexion"],
-        data={"username": utilisateur, "password": mot_de_passe},
-        timeout=DELAI,
-    )
-    r.raise_for_status()
-    r = session.post(
-        conf["acceptation"],
-        data={"accept": "Yes", "action": "acceptTandC", "acceptSubmit": "Continue"},
-        timeout=DELAI,
-    )
-    r.raise_for_status()
-    return session
-
-
 def decompresser(archive: Path) -> list[Path]:
     with zipfile.ZipFile(archive) as z:
         noms = [n for n in z.namelist() if not n.endswith("/")]
@@ -141,17 +117,28 @@ def decompresser(archive: Path) -> list[Path]:
 
 
 def obtenir_freddie(manifeste: dict, verrou: dict, dossier: Path = DOSSIER_DONNEES) -> None:
+    """Décompresse et consigne les archives déposées à la main dans le dossier prévu.
+
+    Le portail Clarity de Freddie Mac exige une connexion dans un navigateur :
+    les archives sont téléchargées à la main, ce script les vérifie.
+    """
     conf = manifeste["freddie_mac"]
     cible_dossier = dossier / conf["dossier"]
-    manquantes = [a for a in conf["annees"] if not (cible_dossier / f"sample_{a}.zip").exists()]
-    session = connexion_freddie(conf) if manquantes else None
+    manquantes = [
+        conf["fichier_modele"].format(annee=a)
+        for a in conf["annees"]
+        if not (cible_dossier / conf["fichier_modele"].format(annee=a)).exists()
+    ]
+    if manquantes:
+        raise ErreurTelechargement(
+            f"Archives absentes de data/{conf['dossier']}/ : {', '.join(manquantes)}. "
+            f"Télécharge-les depuis {conf['portail']} (compte Clarity gratuit), "
+            "voir data/README.md."
+        )
     for annee in conf["annees"]:
-        archive = cible_dossier / f"sample_{annee}.zip"
-        url = conf["url_modele"].format(annee=annee)
-        if not archive.exists():
-            print(f"Freddie Mac {annee} : téléchargement…")
-            _telecharger(session, url, archive)
-        consigner(archive, url, verrou, dossier)
+        archive = cible_dossier / conf["fichier_modele"].format(annee=annee)
+        source = f"{conf['portail']} ({archive.name})"
+        consigner(archive, source, verrou, dossier)
         for fichier in decompresser(archive):
             consigner(fichier, f"{archive.name}!{fichier.name}", verrou, dossier)
         print(f"Freddie Mac {annee} : prêt.")

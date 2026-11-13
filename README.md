@@ -87,9 +87,9 @@ cd ecl9
 pip install -e ".[dev]"
 pytest                      # tests, sans les données
 
-export FREDDIE_USER="..."   # compte gratuit Freddie Mac
-export FREDDIE_PASSWORD="..."
-make donnees                # téléchargement et empreintes SHA-256
+# archives sample_2000.zip à sample_2008.zip déposées dans data/brut/freddie/
+# (portail Clarity de Freddie Mac, compte gratuit : voir data/README.md)
+make donnees                # FRED, décompression et empreintes SHA-256
 make exploration            # panneau prêt-mois et taux de défaut par cohorte
 ```
 

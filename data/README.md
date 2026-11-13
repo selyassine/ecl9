@@ -5,27 +5,25 @@ Rien de ce dossier n'est versionné, sauf ce README, `manifeste.toml` et
 
 ## Téléchargement
 
-1. Crée un compte gratuit sur le portail Freddie Mac
-   (https://freddiemac.embs.com/FLoan/) et accepte les conditions d'utilisation.
-2. Exporte tes identifiants dans le terminal (jamais dans un fichier versionné) :
+**FRED** (sans compte) :
+
+```bash
+ecl9-telecharger --fred
+```
+
+**Freddie Mac** : le jeu est servi par le portail Clarity, derrière une
+connexion dans le navigateur, donc à la main.
+
+1. Crée un compte gratuit Clarity Data Intelligence et connecte-toi sur
+   https://claritydownload.fmapps.freddiemac.com/CRT/ (lien « Access Historical
+   Data » de https://www.freddiemac.com/research/datasets/sf-loanlevel-dataset).
+2. Dans les *sample files*, télécharge `sample_2000.zip` à `sample_2008.zip`.
+3. Dépose-les dans `data/brut/freddie/`, puis lance :
 
    ```bash
-   export FREDDIE_USER="ton.email@exemple.com"
-   export FREDDIE_PASSWORD="..."
+   ecl9-telecharger --freddie   # décompresse et consigne les empreintes
+   ecl9-telecharger --verifier  # contrôle les empreintes sans rien télécharger
    ```
-
-3. Lance :
-
-   ```bash
-   ecl9-telecharger            # Freddie Mac + FRED
-   ecl9-telecharger --fred     # FRED seulement, sans compte
-   ecl9-telecharger --verifier # contrôle les empreintes sans rien télécharger
-   ```
-
-Si la connexion automatique échoue (le portail change parfois), télécharge à
-la main les archives `sample_AAAA.zip` dans `data/brut/freddie/`, puis relance
-`ecl9-telecharger` : il décompresse ce qui est présent et enregistre les
-empreintes.
 
 ## Arborescence produite
 

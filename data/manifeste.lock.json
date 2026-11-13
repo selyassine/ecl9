@@ -1,0 +1,29 @@
+{
+  "fichiers": {
+    "brut/fred/CSUSHPISA.csv": {
+      "sha256": "e797fba1932975575d46ffaa0022b1a5ad597852c05218b52b0b1c17aba2d06e",
+      "octets": 8915,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CSUSHPISA",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/fred/DGS10.csv": {
+      "sha256": "58b7691336499c4e1f5674f62cec4d403fe5173428b090d238adfc433799cc13",
+      "octets": 269363,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/fred/MORTGAGE30US.csv": {
+      "sha256": "45d20db28675827f068d0534949a6c1f431c58193d2153c8fbd9435f5b2530e3",
+      "octets": 47043,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US",
+      "obtenu_le": "2026-11-13"
+    },
+    "brut/fred/UNRATE.csv": {
+      "sha256": "fb669461abc34e00324b940be6bad1c7f89117652f28587196a7b8bf4a9f56a1",
+      "octets": 14226,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=UNRATE",
+      "obtenu_le": "2026-11-13"
+    }
+  },
+  "manifeste_sha256": "db0e02ec3a20b3437f5c587dca732290c71bd152d2d11fdbb1c280a6286dcb4d"
+}

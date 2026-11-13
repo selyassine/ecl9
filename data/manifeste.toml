@@ -9,9 +9,10 @@
 [freddie_mac]
 description = "Single-Family Loan-Level Dataset, version échantillon (environ 50 000 prêts par année d'octroi)"
 documentation = "https://www.freddiemac.com/research/datasets/sf-loanlevel-dataset"
-connexion = "https://freddiemac.embs.com/FLoan/secure/auth.php"
-acceptation = "https://freddiemac.embs.com/FLoan/Data/download.php"
-url_modele = "https://freddiemac.embs.com/FLoan/Data/sample_{annee}.zip"
+# Depuis le passage au portail Clarity, le téléchargement se fait à la main
+# après connexion (pas d'accès scriptable) : voir data/README.md.
+portail = "https://claritydownload.fmapps.freddiemac.com/CRT/"
+fichier_modele = "sample_{annee}.zip"
 annees = [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008]
 dossier = "brut/freddie"
 # Chaque archive contient sample_orig_{annee}.txt (octroi) et
