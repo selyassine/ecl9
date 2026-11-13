@@ -291,3 +291,59 @@ restants forment l'apprentissage (leurs arrêtés jusqu'à fin 2004). Aucun prê
 n'est des deux côtés. Le reste de D-020 est inchangé : grille, arrêt précoce
 et réestimation finale sur tout l'entraînement. La logistique n'est pas
 concernée, car elle n'a pas de réglage.
+
+---
+
+## 2026-11-13 — PD à maturité : protocole, avant estimation
+
+### D-023 Modèle de survie en temps discret
+
+- **Unité** : le mois de vie d'un prêt dans le panneau (D-001). L'événement
+  est le défaut. Le remboursement anticipé et les autres sorties sont des
+  censures, ce qui donne un hasard spécifique au défaut. Cohérent avec D-005,
+  le remboursement anticipé n'est pas projeté.
+- **Hasard** : `h(t) = logit⁻¹(α(âge) + β·x + γ·macro(t))`, régression
+  logistique sur les prêts-mois. C'est une table de mortalité du crédit :
+  - `α(âge)` est une bande d'âge en mois : 0-6, 7-12, 13-24, 25-36, 37-48,
+    49-60, 61 et plus. Au-delà de l'âge maximal vu à l'entraînement
+    (environ 72 mois), le hasard de base reste celui de la dernière bande ;
+  - `x` regroupe les variables d'octroi de D-019, numériques et catégorielles,
+    préparées comme la logistique de D-020 ;
+  - `macro(t)` regroupe le chômage, sa variation sur 12 mois, la variation sur
+    12 mois de Case-Shiller, le taux à 10 ans et l'écart entre le taux du prêt
+    et le taux fixe 30 ans, au mois `t`, avec les décalages de D-019.
+- **Pas de retard en cours dans le hasard** : il faudrait projeter le retard
+  mois par mois, ce qui demanderait un modèle de transitions. Le retard en
+  cours entre dans la provision par le stade (D-003) et par l'ancrage
+  ci-dessous.
+- **Entraînement** : millésimes 2000-2005, mois jusqu'au 31/12/2005 (D-010).
+  Tous les défauts sont gardés, avec 5 % des prêts-mois sans défaut tirés au
+  hasard (graine `20261112`) et pondérés par 20. Ce sous-échantillonnage ne
+  biaise pas les coefficients pondérés.
+
+### D-024 Ancrage de la structure par terme sur la PD à 12 mois
+
+C'est le point où la question du projet (logistique contre LightGBM) passe
+à la PD à maturité. Pour un prêt à la date d'arrêté :
+
+1. le modèle de survie donne les hasards `h(1..n)` sur la durée restante ;
+2. on cherche `c ≥ 0` tel que `1 - Π_{k=1..12} (1 - min(c·h(k), 1))` soit égal
+   à la PD à 12 mois du modèle retenu (logistique ou LightGBM) ;
+3. les hasards des mois 1 à 12 sont multipliés par `c`, et ceux des mois 13 et
+   au-delà sont laissés tels quels.
+
+La PD à 12 mois porte donc l'information propre au prêt (retard, score,
+interactions), et le modèle de survie porte la forme dans le temps et la
+sensibilité au scénario macro au-delà d'un an. Si la durée restante est
+inférieure à 12 mois, l'ancrage porte sur cette durée.
+
+### D-025 Validation de la survie
+
+Sur les millésimes 2006-2008, mois de 2006 à 2010 :
+
+- défauts attendus (somme des hasards) contre défauts observés, par année
+  calendaire et par millésime, d'abord avec la **macro réalisée** (prévision
+  parfaite du scénario), puis avec la **macro figée** à sa valeur de
+  décembre 2005. L'écart entre les deux mesure ce que la macro du modèle
+  explique de la crise ;
+- AUC au niveau prêt-mois.
