@@ -179,6 +179,16 @@ def _categories_apprises(x: pd.DataFrame) -> dict[str, list[str]]:
     return {c: sorted(x[c].dropna().unique().tolist()) for c in VARIABLES_CAT}
 
 
+def prets_de_validation(loan_id: pd.Series, part: float = 0.20) -> pd.Series:
+    """Vrai pour environ ``part`` des prêts, par hachage stable de l'identifiant (D-022).
+
+    Le tirage ne dépend ni de l'ordre des lignes ni de la graine : un prêt est
+    toujours du même côté, quelle que soit la période.
+    """
+    h = pd.util.hash_pandas_object(loan_id.astype("string"), index=False).to_numpy()
+    return pd.Series((h % 10_000) < part * 10_000, index=loan_id.index)
+
+
 def regler_lightgbm(
     x_app: pd.DataFrame, y_app, x_val: pd.DataFrame, y_val, grille: dict = GRILLE
 ) -> pd.DataFrame:

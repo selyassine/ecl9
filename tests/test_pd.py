@@ -96,3 +96,14 @@ def test_memes_variables_pour_les_deux_modeles(donnees):
     assert tuple(m.booster.feature_name()) == pdm.VARIABLES
     lg = pdm.ajuster_logistique(app, app[pdm.CIBLE])
     assert tuple(lg.named_steps["preparation"].feature_names_in_) == pdm.VARIABLES
+
+
+def test_prets_de_validation_disjoints_et_stables():
+    ids = pd.Series([f"F{i:06d}" for i in range(20_000)])
+    v = pdm.prets_de_validation(ids)
+    assert 0.18 < v.mean() < 0.22
+    # Même prêt, même côté, quel que soit l'ordre ou le nombre de lignes.
+    melange = ids.sample(frac=1, random_state=0)
+    assert (pdm.prets_de_validation(melange).sort_index() == v).all()
+    double = pd.concat([ids, ids], ignore_index=True)
+    assert pdm.prets_de_validation(double).groupby(double).nunique().max() == 1
