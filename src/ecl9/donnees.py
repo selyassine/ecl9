@@ -275,3 +275,53 @@ def echantillon_pd12(
     # seulement s'il a fait défaut biaiserait la cible vers 1.
     assez_de_recul = r + fenetre <= dernier_mois_jeu
     return arretes[assez_de_recul].reset_index(drop=True)
+
+
+CODES_REGULARISATION = frozenset({"01", "16"})
+
+
+def resolutions_defaut(suivi: pd.DataFrame, fin_observation: pd.Period | None = None):
+    """Premier défaut de chaque prêt et sa résolution (D-027).
+
+    Renvoie une ligne par prêt en défaut : ``mois_defaut``, ``age_defaut``,
+    ``crd_defaut`` (capital au défaut, à défaut le capital retiré),
+    ``resolution`` (``perte``, ``regularisation`` ou ``non_resolu``),
+    ``mois_resolution`` et ``severite`` (perte / capital retiré, bornée à
+    [0, 1], pour les pertes seulement). Seuls les mois jusqu'à
+    ``fin_observation`` sont pris en compte.
+    """
+    s = suivi.sort_values(["loan_id", "period"]).reset_index(drop=True)
+    if fin_observation is not None:
+        s = s[s["period"] <= fin_observation]
+    defaut = marquer_defaut(s)
+    premier = s[defaut].groupby("loan_id", sort=False).head(1).set_index("loan_id")
+    apres = s[s["loan_id"].isin(premier.index)]
+    apres = apres[apres["period"] >= apres["loan_id"].map(premier["period"])]
+    dernier = apres.groupby("loan_id").tail(1).set_index("loan_id")
+
+    code = dernier["zero_balance_code"].astype("string").str.zfill(2)
+    statut = dernier["delinquency_status"].astype("string").str.strip()
+    retard = statut_retard(statut)
+    perte = code.isin(CODES_SOLDE_NUL_DEFAUT).fillna(False)
+    regul = code.isin(CODES_REGULARISATION).fillna(False) | (
+        code.isna() & (retard < SEUIL_RETARD_DEFAUT).fillna(False)
+    )
+    resolution = pd.Series("non_resolu", index=dernier.index, dtype="string")
+    resolution[regul] = "regularisation"
+    resolution[perte] = "perte"
+
+    retire = dernier["zero_balance_removal_upb"]
+    severite = (dernier["actual_loss"] / retire).clip(0, 1).where(perte & retire.gt(0))
+    resolution[perte & severite.isna()] = "non_resolu"  # perte non chiffrée
+
+    crd = premier["current_upb"].where(premier["current_upb"] > 0, retire.reindex(premier.index))
+    return pd.DataFrame(
+        {
+            "mois_defaut": premier["period"],
+            "age_defaut": premier["loan_age"],
+            "crd_defaut": crd,
+            "resolution": resolution.reindex(premier.index),
+            "mois_resolution": dernier["period"].where(perte | code.notna()),
+            "severite": severite.reindex(premier.index),
+        }
+    ).reset_index()
