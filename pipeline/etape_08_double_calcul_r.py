@@ -24,7 +24,7 @@ sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent))
 import etape_06_moteur as e6
 
 ARRETE = pd.Period("2007-12", "M")
-GRAINE = 20261113
+GRAINE = 20261112
 SCRIPT_R = e6.RACINE / "tests" / "r" / "double_calcul.R"
 
 

@@ -485,3 +485,62 @@ hasards non ancrés), sans aucun code Python : ancrage par dichotomie,
   résultat de la comparaison l'est.
 
 Tolérance : écart relatif inférieur à 1e-8 par prêt.
+
+---
+
+## 2026-11-13 — Scénarios et surcouche de sensibilité : protocole, avant calcul
+
+### D-034 Scénarios prospectifs
+
+Les trajectoires sont construites à chaque arrêté à partir des seules valeurs
+connues à cette date. Les chocs sont atteints linéairement en 12 mois (24 mois
+pour le chômage du scénario défavorable), puis tenus. Au-delà de 36 mois, les
+prix immobiliers se stabilisent dans les trois scénarios.
+
+| Scénario | Poids | Chômage | Prix immobiliers (variation annuelle) | Taux 30 et 10 ans |
+| --- | --- | --- | --- | --- |
+| Central | 50 % | niveau de l'arrêté | celle de l'arrêté | niveau de l'arrêté |
+| Défavorable | 30 % | + 3 points | - 10 % | - 1 point |
+| Favorable | 20 % | - 0,5 point | celle de l'arrêté + 3 points | + 0,5 point |
+
+Le choc défavorable reprend l'ordre de grandeur des récessions américaines
+connues avant 2006 (chômage + 2,6 points en 1990-1992, + 2,5 points en
+2000-2003) ; une baisse nationale des prix de 10 % par an n'avait pas
+d'équivalent depuis les années 1930 et constitue donc un choc sévère. Les taux
+baissent en récession. La variation du chômage sur 12 mois est recalculée sur
+la trajectoire, en reliant historique et projection.
+
+La provision est la moyenne pondérée des provisions de chaque scénario. Les
+stades restent ceux de D-030, calculés avec la trajectoire figée (identique au
+scénario central pour le modèle de survie retenu).
+
+**Résultat principal, purement statistique.** Le modèle de survie retenu
+(D-026) ne connaît que les taux ; les scénarios n'agissent que par ce canal.
+
+**Surcouche, en sensibilité seulement** (choix de l'auteur, 2026-11-13). Le
+logit du hasard mensuel reçoit un écart tiré d'Elul, Souleles,
+Chomsisengphet, Glennon et Hunt, « What "Triggers" Mortgage Default? »,
+Federal Reserve Bank of Philadelphia, document de travail 10-13, avril 2010,
+table 1 (logit trimestriel du passage à 60 jours de retard, prêts à taux fixe
+octroyés en 2005-2006, données LPS) :
+
+- variation du chômage sur un an, classes < -0,5 / [-0,5 ; 0) / [0 ; 0,7) /
+  [0,7 ; 1,25) / ≥ 1,25 point : 0 ; 0,006 ; 0,084 ; 0,183 ; 0,400 ;
+- CLTV réévaluée, classes < 50 / [50 ; 70) / [70 ; 80) / [80 ; 90) /
+  [90 ; 100) / [100 ; 110) / [110 ; 120) / ≥ 120 : 0 ; 0,415 ; 0,718 ; 0,985 ;
+  1,226 ; 1,361 ; 1,550 ; 1,566.
+
+L'écart est la différence entre la classe projetée et la classe à l'arrêté.
+La CLTV réévaluée vaut CLTV d'octroi (LTV à défaut) × capital restant / capital
+initial × indice Case-Shiller national à l'octroi / indice projeté ; le
+capital est tenu à son niveau de l'arrêté. Limites assumées : coefficients
+estimés sur un autre échantillon, à fréquence trimestrielle et pour un défaut
+à 60 jours, appliqués tels quels au logit mensuel du défaut à 90 jours ; étude
+publiée après la crise qu'elle couvre. La provision avec surcouche est publiée
+à côté du résultat principal, jamais à sa place.
+
+### D-035 Double calcul sur prêts réels, tirage
+
+Le tirage de D-033 est stratifié : 25 prêts en stade 1 et 25 en stade 2
+(critère de retard de l'étape 6), sans quoi presque tous seraient en stade 1.
+Le stade 3 (LGD × capital) est couvert par le contrôle sur prêts simulés.

@@ -49,3 +49,9 @@ def table_macro(series: dict[str, pd.Series]) -> pd.DataFrame:
 
 def charger(dossier: Path) -> pd.DataFrame:
     return table_macro({n: lire_serie(dossier / f"{n}.csv") for n in DECALAGES_PUBLICATION})
+
+
+def indice_prix(dossier: Path) -> pd.Series:
+    """Niveau de l'indice Case-Shiller connu à la fin de chaque mois (décalé de 2 mois)."""
+    s = lire_serie(dossier / "CSUSHPISA.csv").sort_index().asfreq("M")
+    return s.shift(DECALAGES_PUBLICATION["CSUSHPISA"]).rename("hpi")
