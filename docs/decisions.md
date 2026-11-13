@@ -206,3 +206,56 @@ biaiserait la cible vers 1.
 Les retards liés aux moratoires COVID apparaissent comme des défauts de
 90 jours en 2020-2021. Ils sont hors de la période étudiée (arrêtés de 2000 à
 2010) et ne sont pas retraités.
+
+---
+
+## 2026-11-13 — PD à 12 mois : variables et protocole, avant estimation
+
+### D-019 Variables communes aux deux modèles
+
+La régression logistique et LightGBM reçoivent **exactement** les mêmes
+variables. Seule leur préparation diffère (D-020).
+
+| Groupe | Variables |
+| --- | --- |
+| Octroi, numériques | score de crédit, LTV, CLTV, DTI, taux d'origine, log du capital initial, durée initiale, taux d'assurance hypothécaire (MI %) |
+| Octroi, catégorielles | objet du prêt, occupation, canal, type de bien, primo-accédant, nombre de logements, nombre d'emprunteurs, État |
+| Dynamiques à l'arrêté | âge du prêt, retard en mensualités (0, 1 ou 2), capital restant / capital initial, écart entre le taux du prêt et le taux fixe 30 ans du marché |
+| Macro nationales (FRED) | chômage, variation du chômage sur 12 mois, variation sur 12 mois de l'indice Case-Shiller, taux à 10 ans |
+
+Variables écartées : celles qui sont constantes sur 2000-2008 (type
+d'amortissement, prêt in fine, programme, méthode d'évaluation, VantageScore),
+la MSA (34 % de valeurs manquantes) et la LTV estimée (non renseignée avant
+2013).
+
+**Valeurs connues à l'arrêté** : le chômage du mois `m` est publié début
+`m + 1`, et l'indice Case-Shiller avec deux mois de retard. Le chômage est
+donc pris avec 1 mois de décalage, l'indice avec 2 mois, et les taux en
+moyenne du mois de l'arrêté.
+
+### D-020 Préparation et réglage
+
+- **Logistique** : variables numériques centrées-réduites ; valeurs
+  manquantes remplacées par la médiane d'entraînement, avec une indicatrice ;
+  catégorielles et retard en indicatrices ; pénalité L2 faible (`C = 1`).
+  Aucune transformation non linéaire : c'est le modèle de référence.
+- **LightGBM** : valeurs manquantes et catégorielles gérées nativement.
+  Grille : `num_leaves` ∈ {15, 31, 63}, `min_child_samples` ∈ {200, 1 000},
+  taux d'apprentissage 0,05, sous-échantillonnage de 80 % des lignes et
+  des variables, arrêt précoce après 100 itérations sans gain.
+- **Réglage** : apprentissage sur les arrêtés jusqu'à fin 2004, validation sur
+  les arrêtés de 2005 (millésimes 2000-2005). Le modèle final est réestimé
+  sur tout l'échantillon d'entraînement avec le nombre d'itérations retenu.
+  La période de test n'intervient jamais dans un choix.
+- Graine `20261112`.
+
+### D-021 Mesures publiées
+
+Sur le test (millésimes 2006-2008, tous leurs arrêtés de 2006 à 2025), et
+séparément sur les arrêtés de 2006 à 2010 :
+
+- AUC et Gini ;
+- calibration : défaut observé contre PD moyenne par décile de PD, et rapport
+  de la somme des PD au nombre de défauts ;
+- PSI de la distribution des PD entre l'entraînement et le test ;
+- score de Brier.
