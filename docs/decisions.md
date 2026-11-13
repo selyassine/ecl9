@@ -425,3 +425,63 @@ actualisation (D-006), puis la formule de D-007.
 
 Tant que les scénarios ne sont pas construits (semaine 5), la trajectoire
 macro est **figée** à sa valeur de l'arrêté.
+
+---
+
+## 2026-11-13 — Stades, procyclicité, backtest et double calcul : protocole, avant calcul
+
+### D-030 Critère de dégradation du stade 2, en pratique
+
+La comparaison de D-003 se fait **avec la même chaîne de modèles** à l'octroi
+et à l'arrêté. Chaque modèle de PD à 12 mois a donc ses propres stades :
+
+- **à l'octroi** : PD à 12 mois du modèle calculée sur les variables
+  d'octroi (âge 0, aucun retard, capital restant = capital initial, macro du
+  mois précédant le premier paiement). Hasards de survie depuis l'âge 0 sur la
+  durée initiale, macro figée à ce mois, ancrés sur cette PD (D-024). On en
+  tire la PD cumulée sur la durée initiale, puis annualisée ;
+- **à l'arrêté** : PD à 12 mois du modèle à l'arrêté, hasards projetés sur la
+  durée restante avec la trajectoire macro de l'arrêté, ancrés. On en tire la
+  PD cumulée sur la durée restante, puis annualisée ;
+- stade 2 si le rapport des deux PD annualisées atteint 2, ou en cas de
+  retard d'au moins une mensualité.
+
+### D-031 Provision trimestrielle 2006-2010 (procyclicité)
+
+- Arrêtés de fin mars 2006 à fin décembre 2010, soit 20 trimestres.
+- Portefeuille : prêts des millésimes 2006-2008 présents à l'arrêté,
+  c'est-à-dire actifs ou en défaut non encore résolu. Les prêts en défaut sont
+  en stade 3, avec la LGD du modèle (D-028) appliquée à leur capital au
+  défaut.
+- La trajectoire macro est figée à l'arrêté tant que les scénarios ne sont
+  pas construits. Elle sera remplacée par la moyenne pondérée des scénarios
+  (D-013), et les deux versions seront publiées.
+
+### D-032 Backtest
+
+- **Par arrêté** : la provision est comparée aux pertes réellement constatées
+  sur le même périmètre et le même horizon. Pour un prêt en stade 1, on
+  compte les défauts dans les 12 mois ; pour un prêt en stade 2, les défauts
+  jusqu'à la fin des données ; pour un prêt en stade 3, la résolution de son
+  défaut en cours. La perte constatée d'un défaut vaut 0 en cas de
+  régularisation, et `actual_loss` (plafonnée au capital) en cas de perte.
+  Les défauts non résolus sont comptés à part. Les pertes ne sont pas
+  actualisées.
+- **Par génération** : à la fin de l'année d'octroi, la perte attendue sur
+  toute la durée de vie (tous les prêts traités à maturité, macro figée) est
+  comparée aux pertes constatées sur ces prêts jusqu'en juin 2026.
+
+### D-033 Double calcul en R
+
+`tests/r/double_calcul.R` recalcule la provision à partir des seules entrées
+de la formule (stade, capital, taux, durée restante, LGD, PD à 12 mois,
+hasards non ancrés), sans aucun code Python : ancrage par dichotomie,
+échéancier, PD marginales, actualisation. Deux contrôles sont faits :
+
+- en intégration continue, sur 50 prêts simulés dont les entrées sont
+  générées par le test Python ;
+- sur 50 prêts réels tirés au hasard (graine `20261112`) dans le portefeuille
+  au 31/12/2007. Les entrées réelles ne sont pas versionnées (D-016) ; le
+  résultat de la comparaison l'est.
+
+Tolérance : écart relatif inférieur à 1e-8 par prêt.
