@@ -59,9 +59,14 @@ def test_resolutions(suivi):
     assert set(r.index) == {"P", "R", "N", "G"}
     assert r.loc["P", "resolution"] == "perte"
     assert r.loc["P", "severite"] == pytest.approx(0.30)
+    assert r.loc["P", "perte_montant"] == pytest.approx(30_000)
+    assert np.isnan(r.loc["R", "perte_montant"])
     assert str(r.loc["P", "mois_defaut"]) == "2001-03"
     assert r.loc["P", "crd_defaut"] == 100_000
     assert r.loc["R", "resolution"] == "regularisation"
+    assert str(r.loc["R", "mois_fin_defaut"]) == "2001-03"  # retour à jour
+    assert str(r.loc["P", "mois_fin_defaut"]) == "2002-01"  # liquidation
+    assert pd.isna(r.loc["N", "mois_fin_defaut"])
     assert r.loc["N", "resolution"] == "non_resolu"
     assert r.loc["G", "resolution"] == "perte" and r.loc["G", "severite"] == 0.0
 

@@ -99,8 +99,10 @@ def main() -> None:
         print(t.round(3).to_string())
 
     toutes = pd.concat([app.assign(echantillon="entrainement"), test.assign(echantillon="test")])
-    toutes.assign(mois_defaut=toutes["mois_defaut"].dt.to_timestamp()).drop(
-        columns=["mois_resolution"]
+    toutes.assign(
+        mois_defaut=toutes["mois_defaut"].dt.to_timestamp(),
+        mois_resolution=toutes["mois_resolution"].dt.to_timestamp(),
+        mois_fin_defaut=toutes["mois_fin_defaut"].dt.to_timestamp(),
     ).to_parquet(DOSSIER_DONNEES / "intermediaire" / "defauts.parquet", index=False)
     print(f"Terminé en {time.time() - t0:.0f} s")
 

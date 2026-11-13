@@ -286,8 +286,10 @@ def resolutions_defaut(suivi: pd.DataFrame, fin_observation: pd.Period | None = 
     Renvoie une ligne par prêt en défaut : ``mois_defaut``, ``age_defaut``,
     ``crd_defaut`` (capital au défaut, à défaut le capital retiré),
     ``resolution`` (``perte``, ``regularisation`` ou ``non_resolu``),
-    ``mois_resolution`` et ``severite`` (perte / capital retiré, bornée à
-    [0, 1], pour les pertes seulement). Seuls les mois jusqu'à
+    ``mois_resolution``, ``mois_fin_defaut`` (sortie définitive ou premier
+    retour sous 3 mensualités de retard), ``severite`` (perte / capital retiré, bornée à
+    [0, 1]) et ``perte_montant`` (perte réalisée bornée au capital retiré),
+    ces deux dernières pour les pertes seulement. Seuls les mois jusqu'à
     ``fin_observation`` sont pris en compte.
     """
     s = suivi.sort_values(["loan_id", "period"]).reset_index(drop=True)
@@ -298,6 +300,11 @@ def resolutions_defaut(suivi: pd.DataFrame, fin_observation: pd.Period | None = 
     apres = s[s["loan_id"].isin(premier.index)]
     apres = apres[apres["period"] >= apres["loan_id"].map(premier["period"])]
     dernier = apres.groupby("loan_id").tail(1).set_index("loan_id")
+    # Premier mois après le défaut où le retard repasse sous 3 mensualités.
+    retard_apres = statut_retard(apres["delinquency_status"])
+    sous_seuil = apres[(retard_apres < SEUIL_RETARD_DEFAUT).fillna(False)]
+    sous_seuil = sous_seuil[sous_seuil["period"] > sous_seuil["loan_id"].map(premier["period"])]
+    premier_retour = sous_seuil.groupby("loan_id")["period"].min()
 
     code = dernier["zero_balance_code"].astype("string").str.zfill(2)
     statut = dernier["delinquency_status"].astype("string").str.strip()
@@ -322,6 +329,14 @@ def resolutions_defaut(suivi: pd.DataFrame, fin_observation: pd.Period | None = 
             "crd_defaut": crd,
             "resolution": resolution.reindex(premier.index),
             "mois_resolution": dernier["period"].where(perte | code.notna()),
+            # Fin du stade 3 : sortie définitive, ou retour sous 90 jours de retard.
+            "mois_fin_defaut": pd.concat(
+                [dernier["period"].where(code.notna()), premier_retour.reindex(dernier.index)],
+                axis=1,
+            ).min(axis=1),
             "severite": severite.reindex(premier.index),
+            "perte_montant": (
+                dernier["actual_loss"].clip(lower=0).clip(upper=retire).where(perte)
+            ).reindex(premier.index),
         }
     ).reset_index()
