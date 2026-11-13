@@ -19,17 +19,20 @@
 > [`docs/decisions.md`](docs/decisions.md) before any model was fitted. The
 > answer may well be "not demonstrably". Report and documentation are in French.
 
-**Résultat : pas encore.** Le projet est en semaine 1 : les définitions sont
-figées, le panneau prêt-mois est prêt à être construit, aucun modèle n'a été
-estimé. La réponse pourra être « non, pas de façon démontrable » : elle devra
-seulement être démontrée, avec un intervalle de confiance.
+**Résultat provisoire (semaine 2) : ni l'un ni l'autre ne voit venir la crise.**
+Entraînés sur 2000-2005, la logistique et LightGBM prévoient en 2008 entre 10
+et 25 % des défauts à 12 mois réellement observés. LightGBM classe un peu mieux
+les prêts (AUC 0,815 contre 0,789 sur 2006-2010) et sous-estime moins (31 % des
+défauts contre 17 %). L'effet sur la provision, et son intervalle de confiance,
+viendront avec la PD à maturité, la LGD et les scénarios. Détail :
+[`rapport/resultats/pd12.md`](rapport/resultats/pd12.md).
 
 ## État d'avancement
 
 | Semaine | Travail | État |
 | --- | --- | --- |
-| 1 | Téléchargement, panneau prêt-mois, définitions figées, analyse exploratoire | en cours |
-| 2 | PD à 12 mois : logistique puis LightGBM, validation hors période | à faire |
+| 1 | Téléchargement, panneau prêt-mois, définitions figées, analyse exploratoire | fait |
+| 2 | PD à 12 mois : logistique puis LightGBM, validation hors période | [fait](rapport/resultats/pd12.md) |
 | 3 | PD à maturité par survie, variables macro | à faire |
 | 4 | LGD, EAD, moteur de calcul et tests à la main | moteur et EAD faits |
 | 5 | Stades, scénarios, backtest sur la crise, double calcul R | stades faits |
