@@ -103,3 +103,18 @@ def test_estimation_ponderee_et_projection():
     assert len(h_calme) == 30
     assert (h_crise > h_calme).all()  # plus de chômage, plus de défauts
     assert h_calme[10] > h_calme[3]  # passage à la bande 13-24 mois
+
+
+def test_contrainte_de_signe_retire_le_coefficient_contraire():
+    # Le vrai hasard augmente avec le chômage. On exige le signe opposé :
+    # la variable doit être retirée, les autres gardées.
+    df = _panneau(1500, 4)
+    e = survie.echantillonner(df, part=0.5, graine=2)
+    libre = survie.ajuster(e)
+    assert survie.coefficients_macro(libre)["chomage"] > 0
+    m, exclues = survie.ajuster_avec_signes(e, {"chomage": -1})
+    assert exclues == ("chomage",)
+    assert "chomage" not in survie.coefficients_macro(m)
+    assert np.isfinite(survie.hasards(m, df)).all()
+    # Avec le bon signe attendu, rien n'est retiré.
+    assert survie.ajuster_avec_signes(e, {"chomage": 1})[1] == ()

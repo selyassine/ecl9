@@ -100,7 +100,7 @@ def _x(df: pd.DataFrame) -> pd.DataFrame:
     return x
 
 
-def modele() -> Pipeline:
+def modele(exclues: tuple[str, ...] = ()) -> Pipeline:
     numeriques = make_pipeline(
         SimpleImputer(strategy="median", add_indicator=True), StandardScaler()
     )
@@ -109,16 +109,51 @@ def modele() -> Pipeline:
         OneHotEncoder(handle_unknown="ignore"),
     )
     preparation = ColumnTransformer(
-        [("num", numeriques, list(VARIABLES_NUM)), ("cat", categorielles, list(VARIABLES_CAT))]
+        [
+            ("num", numeriques, [v for v in VARIABLES_NUM if v not in exclues]),
+            ("cat", categorielles, list(VARIABLES_CAT)),
+        ]
     )
     return Pipeline([("preparation", preparation), ("logit", LogisticRegression(max_iter=2000))])
 
 
-def ajuster(echantillon: pd.DataFrame) -> Pipeline:
+def ajuster(echantillon: pd.DataFrame, exclues: tuple[str, ...] = ()) -> Pipeline:
     poids = echantillon["poids"] if "poids" in echantillon else None
-    return modele().fit(
+    return modele(exclues).fit(
         _x(echantillon), echantillon["defaut"].to_numpy(), logit__sample_weight=poids
     )
+
+
+# Signe attendu de l'effet de chaque variable macro sur le hasard de défaut.
+# Le taux à 10 ans n'a pas de signe attendu univoque : il n'est pas contraint.
+SIGNES_ATTENDUS = {"chomage": 1, "chomage_var12": 1, "hpi_var12": -1, "ecart_taux": 1}
+
+
+def coefficients_macro(m: Pipeline) -> pd.Series:
+    noms = m.named_steps["preparation"].get_feature_names_out()
+    coef = pd.Series(m.named_steps["logit"].coef_[0], index=noms)
+    garde = [n for n in noms if n.removeprefix("num__") in VARIABLES_MACRO]
+    return coef[garde].rename(lambda n: n.removeprefix("num__"))
+
+
+def ajuster_avec_signes(
+    echantillon: pd.DataFrame, signes: dict[str, int] = SIGNES_ATTENDUS
+) -> tuple[Pipeline, tuple[str, ...]]:
+    """Réestime en retirant une à une les variables macro de signe contraire.
+
+    À chaque tour, la variable dont le coefficient contredit le plus fortement
+    son signe attendu est retirée, ce qui revient à fixer son coefficient à
+    zéro, puis le modèle est réestimé. Renvoie le modèle et les variables
+    retirées, dans l'ordre.
+    """
+    exclues: tuple[str, ...] = ()
+    while True:
+        m = ajuster(echantillon, exclues)
+        coef = coefficients_macro(m)
+        fautifs = {v: coef[v] * s for v, s in signes.items() if v in coef and coef[v] * s < 0}
+        if not fautifs:
+            return m, exclues
+        exclues = (*exclues, min(fautifs, key=fautifs.get))
 
 
 def hasards(m: Pipeline, df: pd.DataFrame) -> np.ndarray:
