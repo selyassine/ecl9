@@ -166,3 +166,43 @@ Les codes sentinelles Freddie Mac (score `9999`, LTV/CLTV `999`, DTI `999`,
 etc.) sont convertis en valeurs manquantes à la lecture. Leur traitement dans
 les modèles (indicatrice et imputation pour la logistique, natif pour
 LightGBM) est fixé en semaine 2.
+
+---
+
+## 2026-11-13 — Précisions après lecture des fichiers réels
+
+Ces précisions viennent du format des fichiers (guide utilisateur Freddie Mac
+de juillet 2026) et de la construction du panneau. Aucun modèle n'a encore été
+estimé.
+
+### D-016 Format, millésime et perte réalisée
+
+- Les archives `sample_AAAA.zip` contiennent `sample_orig_AAAA.txt`
+  (31 champs) et `sample_perf_AAAA.txt` (35 champs). Le champ « Servicer
+  Name » est passé du fichier d'octroi au fichier de suivi, et un score
+  VantageScore 4.0 (vide sur 2000-2008) a été ajouté.
+- **Millésime** : l'année d'octroi retenue pour le découpage de D-010 est
+  l'année du fichier échantillon, pas l'année du premier paiement. Dans le
+  fichier 2005, 16 % des prêts ont un premier paiement en 2006 ou après.
+- **Perte réalisée** : `actual_loss` est positive pour une perte et négative
+  pour un gain. Elle n'est calculée que pour les codes de solde nul 02, 03, 09
+  et 15, ce qui confirme la liste de D-001. Cela tranche la convention de
+  signe laissée ouverte en D-009.
+- **Code 96** (défaut de souscription ou de gestion confirmé avant tout
+  incident de crédit, rachat par le vendeur) : ce n'est pas un défaut. Le
+  prêt sort du panneau sans événement, comme un remboursement.
+- **Code 16** (titrisation de prêts redevenus performants) : ce n'est pas un
+  défaut, le prêt sort sans événement.
+
+### D-017 Arrêtés sans recul complet
+
+Un arrêté dont la fenêtre de 12 mois dépasse la dernière date observée du jeu
+(juin 2026) est retiré de l'échantillon PD à 12 mois **dans tous les cas**,
+y compris si le défaut est déjà observé : ne garder que les défauts
+biaiserait la cible vers 1.
+
+### D-018 Moratoires de 2020-2021
+
+Les retards liés aux moratoires COVID apparaissent comme des défauts de
+90 jours en 2020-2021. Ils sont hors de la période étudiée (arrêtés de 2000 à
+2010) et ne sont pas retraités.
