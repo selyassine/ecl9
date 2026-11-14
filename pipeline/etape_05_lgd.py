@@ -25,9 +25,14 @@ FIN_RESOLUTION_APP = FIN_DEFAUT_APP + 12
 FIN_DEFAUT_TEST = pd.Period("2010-12", "M")
 
 
-def defauts_du_millesime(annee: int, fin_observation) -> pd.DataFrame:
+def defauts_du_millesime(annee: int, fin_observation, crd_arretes: list | None = None):
+    """Défauts du millésime ; ``crd_arretes`` reçoit leur capital aux arrêtés (D-043)."""
     s = donnees.lire_suivi(BRUT / f"sample_perf_{annee}.txt")
     r = donnees.resolutions_defaut(s, fin_observation)
+    if crd_arretes is not None:
+        t = s[s["loan_id"].isin(r["loan_id"]) & s["period"].dt.month.isin([3, 6, 9, 12])]
+        t = t[t["period"] >= t["loan_id"].map(r.set_index("loan_id")["mois_defaut"])]
+        crd_arretes.append(t[["loan_id", "period", "current_upb"]])
     return r.assign(annee_octroi=annee)
 
 
@@ -74,7 +79,10 @@ def main() -> None:
         ignore_index=True,
     )
     app = app[app["mois_defaut"] <= FIN_DEFAUT_APP]
-    test = pd.concat([defauts_du_millesime(a, None) for a in ANNEES_TEST], ignore_index=True)
+    crd_arretes: list = []
+    test = pd.concat(
+        [defauts_du_millesime(a, None, crd_arretes) for a in ANNEES_TEST], ignore_index=True
+    )
     test = test[test["mois_defaut"].dt.year.between(2006, FIN_DEFAUT_TEST.year)]
     app, test = variables(app, octroi), variables(test, octroi)
     print(f"Défauts : {len(app):,} entraînement, {len(test):,} test ({time.time() - t0:.0f} s)")
@@ -104,6 +112,11 @@ def main() -> None:
         mois_resolution=toutes["mois_resolution"].dt.to_timestamp(),
         mois_fin_defaut=toutes["mois_fin_defaut"].dt.to_timestamp(),
     ).to_parquet(DOSSIER_DONNEES / "intermediaire" / "defauts.parquet", index=False)
+    # Capital des prêts en défaut à chaque arrêté trimestriel, pour le stade 3 (D-043).
+    crd = pd.concat(crd_arretes, ignore_index=True)
+    crd.assign(period=crd["period"].dt.to_timestamp()).to_parquet(
+        DOSSIER_DONNEES / "intermediaire" / "crd_defauts_arretes.parquet", index=False
+    )
     print(f"Terminé en {time.time() - t0:.0f} s")
 
 

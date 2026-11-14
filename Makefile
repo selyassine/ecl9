@@ -1,4 +1,4 @@
-.PHONY: installer donnees verifier panneau exploration pd12 survie remboursement lgd moteur trimestriel double-calcul sensibilites bootstrap-modeles pipeline note tests lint
+.PHONY: installer donnees verifier panneau exploration pd12 survie remboursement lgd moteur trimestriel double-calcul sensibilites bootstrap-modeles coupure-stricte pipeline note tests lint
 
 installer:
 	pip install -e ".[dev,eda,rapport]"
@@ -46,7 +46,10 @@ sensibilites: trimestriel
 bootstrap-modeles: trimestriel
 	python pipeline/etape_10_bootstrap_modeles.py
 
-pipeline: exploration sensibilites double-calcul bootstrap-modeles
+coupure-stricte: trimestriel
+	python pipeline/etape_11_coupure_stricte.py
+
+pipeline: exploration sensibilites double-calcul bootstrap-modeles coupure-stricte
 
 note:
 	cd rapport && quarto render note.qmd

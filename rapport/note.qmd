@@ -76,7 +76,9 @@ rembt = pd.read_csv(R / "remboursement_mesures.csv")
 chemin_bm = R / "bootstrap_modeles.csv"
 bm = pd.read_csv(chemin_bm).set_index("arrete") if chemin_bm.exists() else None
 
-tot = fig_.groupby(["arrete", "modele"])[["encours", "ecl", "pertes_constatees"]].sum()
+COLS_TOT = ["encours", "ecl", "pertes_constatees", "pertes_non_resolus_estimees"]
+tot = fig_.groupby(["arrete", "modele"])[COLS_TOT].sum()
+tot["pertes_avec_estimees"] = tot["pertes_constatees"] + tot["pertes_non_resolus_estimees"]
 tot1 = fig1.groupby(["arrete", "modele"])[["ecl"]].sum()
 dates = pd.PeriodIndex(sorted(fig_["arrete"].unique()), freq="M").to_timestamp(how="end")
 b = boot.set_index("arrete")
@@ -86,6 +88,19 @@ ecart = b["ecart_relatif"]
 avant = ecart.loc["2006-12":"2008-12"]
 apres = ecart.loc["2009-12":"2010-12"]
 couv = {n: t07.loc[n, "ecl"] / t07.loc[n, "pertes_constatees"] for n in NOM}
+couv_est = {n: t07.loc[n, "ecl"] / t07.loc[n, "pertes_avec_estimees"] for n in NOM}
+nr07 = fig_[(fig_.arrete == "2007-12") & (fig_.modele == "logistique")]["defauts_non_resolus"].sum()
+cs_chemin = R / "coupure_stricte.csv"
+cs = pd.read_csv(cs_chemin) if cs_chemin.exists() else None
+txt_cs = ""
+if cs is not None:
+    c_ = cs[cs.dernier_arrete_entrainement == "2004-12"].set_index("modele")
+    ecart_cs = {a: c_.loc["lightgbm", f"ecl_{a}"] / c_.loc["logistique", f"ecl_{a}"] - 1 for a in ("2007-12", "2008-12")}
+    txt_cs = (
+        f" L'ampleur dépend toutefois de la fenêtre d'entraînement : en retirant les arrêtés "
+        f"de 2005, dont les étiquettes ne sont connues que fin 2006 (D-046), l'écart tombe à "
+        f"{pct(ecart_cs['2007-12'], signe=True)}, parce que la logistique provisionne alors davantage."
+    )
 g = scen.groupby(["arrete", "modele"]).sum(numeric_only=True)
 eff = {c: g[f"ecl_ponderee{c}"] / g["ecl"] - 1 for c in ("", "_surcouche", "_surcouche_etats")}
 defav07 = (g["ecl_defavorable_surcouche"] / g["ecl"] - 1).xs("2007-12")
@@ -113,10 +128,12 @@ la même règle de stades, LightGBM provisionne
 `{python} fr(t07.loc['logistique','ecl']/1e6)` M$ pour la logistique, soit
 `{python} pct(b07['ecart_relatif'], signe=True)` (intervalle à 95 % sur la
 composition du portefeuille : `{python} pct(b07['ecart_relatif_bas'], signe=True)`
-à `{python} pct(b07['ecart_relatif_haut'], signe=True)`).`{python} ic_bm` Mais
+à `{python} pct(b07['ecart_relatif_haut'], signe=True)`).`{python} ic_bm + txt_cs` Mais
 les deux provisions ne couvrent que `{python} pct(couv['logistique'])` à
-`{python} pct(couv['lightgbm'])` des pertes constatées ensuite sur le même
-horizon. Entraînés sur 2000-2005, aucun des deux modèles ne voit venir la
+`{python} pct(couv['lightgbm'])` des pertes chiffrées ensuite sur le même
+horizon, et `{python} pct(couv_est['logistique'])` à
+`{python} pct(couv_est['lightgbm'])` en estimant la perte des défauts dont
+Freddie Mac ne publie pas le montant (D-044). Entraînés sur 2000-2005, aucun des deux modèles ne voit venir la
 crise ; LightGBM s'en approche un peu moins mal.
 
 # Données et méthode
@@ -208,8 +225,11 @@ for nom in ("logistique", "lightgbm"):
     ax.annotate(NOM[nom], (dates[-1], y.iloc[-1]), xytext=(6, -3 if nom == "logistique" else 5),
                 textcoords="offset points", color=ENCRE, fontsize=9)
 p = tot.xs("logistique", level="modele")["pertes_constatees"] / 1e6
-ax.plot(dates, p, color=SECONDAIRE, linestyle="--", label="Pertes constatées")
-ax.annotate("Pertes constatées", (dates[-1], p.iloc[-1]), xytext=(6, 0),
+pe = tot.xs("logistique", level="modele")["pertes_avec_estimees"] / 1e6
+ax.fill_between(dates, p, pe, color=SECONDAIRE, alpha=0.25, linewidth=0,
+                label="dont défauts sans perte publiée (estimation)")
+ax.plot(dates, p, color=SECONDAIRE, linestyle="--", label="Pertes chiffrées")
+ax.annotate("Pertes", (dates[-1], p.iloc[-1]), xytext=(6, 0),
             textcoords="offset points", color=ENCRE, fontsize=9)
 ax.set_yscale("log")
 ax.set_ylabel("M$")
@@ -230,7 +250,8 @@ for a in ["2006-12", "2007-12", "2008-12", "2009-12", "2010-12"]:
             "Logistique (M USD)": fr(t.loc["logistique", "ecl"] / 1e6),
             "LightGBM (M USD)": fr(t.loc["lightgbm", "ecl"] / 1e6),
             "dont stade 3 (M USD)": fr(s3 / 1e6),
-            "Pertes constatées (M USD)": fr(t.loc["logistique", "pertes_constatees"] / 1e6),
+            "Pertes chiffrées (M USD)": fr(t.loc["logistique", "pertes_constatees"] / 1e6),
+            "Pertes avec non résolus estimés (M USD)": fr(t.loc["logistique", "pertes_avec_estimees"] / 1e6),
             "LightGBM sans remboursement (M USD)": fr(tot1.loc[(a, "lightgbm"), "ecl"] / 1e6),
         }
     )
@@ -368,7 +389,8 @@ provision de fin 2007 : aucune pondération plausible ne comble un écart de 1 �
 # Backtest par génération
 
 ```{python}
-gg = gen.pivot_table(index="millesime", columns="modele", values=["ecl_maturite", "pertes_constatees"])
+gen["pertes_avec_estimees"] = gen["pertes_constatees"] + gen["pertes_non_resolus_estimees"]
+gg = gen.pivot_table(index="millesime", columns="modele", values=["ecl_maturite", "pertes_constatees", "pertes_avec_estimees"])
 g1 = gen1.pivot_table(index="millesime", columns="modele", values="ecl_maturite")
 Markdown(
     pd.DataFrame(
@@ -377,7 +399,8 @@ Markdown(
             "Perte attendue à maturité, logistique (M USD)": (gg[("ecl_maturite", "logistique")] / 1e6).map(fr),
             "LightGBM (M USD)": (gg[("ecl_maturite", "lightgbm")] / 1e6).map(fr),
             "LightGBM sans remboursement (M USD)": (g1["lightgbm"] / 1e6).map(fr),
-            "Pertes constatées (M USD)": (gg[("pertes_constatees", "logistique")] / 1e6).map(fr),
+            "Pertes chiffrées (M USD)": (gg[("pertes_constatees", "logistique")] / 1e6).map(fr),
+            "Pertes avec non résolus estimés (M USD)": (gg[("pertes_avec_estimees", "logistique")] / 1e6).map(fr),
         }
     ).to_markdown(index=False)
 )
@@ -406,14 +429,30 @@ divisée par 10 à 20, alors que ces remboursements ne se sont pas produits.
   après la crise et estimée sur un autre échantillon.
 - Le modèle de remboursement, comme celui du défaut, n'a vu que 2000-2005 :
   il surestime fortement les remboursements de la crise.
+- L'écart entre les modèles est sensible à la fenêtre d'entraînement (D-046) :
+  il passe du simple au double selon que les arrêtés de 2005 sont inclus ou
+  non. Les intervalles de confiance ne couvrent pas cette incertitude.
 - L'intervalle avec réestimation tient fixes la survie, le remboursement et
   la LGD, et ne porte que sur 100 tirages.
+- La LGD prévue (7,6 %) est quatre fois inférieure à la LGD réalisée sur la
+  crise (29,5 %) : à elle seule, elle interdit de lire ces provisions comme
+  une estimation des pertes. Elle est commune aux deux modèles et ne change
+  pas leur écart relatif.
+- Pertes du backtest : une partie des défauts sort des données sans perte
+  publiée. Ils comptent pour zéro dans les pertes chiffrées (minorant) et
+  sont estimés à part (D-044).
+- Stade 3 mesuré par LGD × capital à l'arrêté (D-043), sans flux de
+  recouvrement actualisés ni intérêts courus ; stade 2 par une règle unique
+  de ratio de PD, sans critère qualitatif ni période de probation.
+- Le double calcul R contrôle l'implémentation de la formule, pas les
+  hypothèses : une hypothèse fausse partagée par les deux programmes passe.
 
 # Conclusion
 
 Remplacer la logistique par LightGBM augmente la provision de
 `{python} pct(avant.min(), 0)` à `{python} pct(avant.max(), 0)` entre fin 2006
-et fin 2008, un écart qui résiste à l'incertitude d'échantillonnage, puis de
+et fin 2008, un écart qui résiste à l'incertitude d'échantillonnage mais dont
+l'ampleur est divisée par deux avec une année d'entraînement en moins, puis de
 moins de `{python} pct(apres.max() + 0.005, 0)` ensuite. Ce gain est réel mais
 second : entraînés sur une période sans crise, les deux modèles sous-estiment
 les pertes d'un facteur 10 ou plus au moment où cela compte, et le remboursement

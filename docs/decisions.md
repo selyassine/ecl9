@@ -652,3 +652,91 @@ d'estimation des deux modèles de PD à 12 mois :
   ceux du résultat principal ; seule la PD à 12 mois change ;
 - arrêtés 31/12/2007 et 31/12/2008, macro figée, remboursement anticipé
   inclus (D-040). Intervalle : centiles 2,5 et 97,5 de l'écart relatif.
+
+## 2026-11-15 — Revue corrective : stade 3, backtest, ancrage, étiquettes
+
+Quatre points relevés par une relecture critique du dépôt. Chacun a été
+vérifié dans le code puis chiffré sur les données avant correction.
+
+### D-043 Exposition du stade 3 à la date d'arrêté
+
+**Corrige D-031.** La provision d'un prêt en stade 3 utilisait le capital au
+moment du défaut. Elle utilise désormais le capital restant dû **à l'arrêté**
+(`current_upb` du suivi mensuel), et à défaut seulement le capital au défaut
+(prêt absent du suivi à cette date, ou capital nul). L'étape 5 écrit pour
+cela `data/intermediaire/crd_defauts_arretes.parquet`.
+
+Effet mesuré : l'encours et la provision du stade 3 baissent de 0 à 0,18 %
+selon l'arrêté, parce qu'un prêt en défaut ne s'amortit presque plus. Les
+stades 1 et 2 sont inchangés. La LGD garde ses variables au moment du défaut,
+telles qu'elle a été estimée (D-028). Le stade 3 reste LGD × capital : ni
+flux de recouvrement actualisés, ni intérêts courus.
+
+Le bootstrap avec réestimation (D-042, 2 h 30 de calcul) n'a pas été relancé :
+il reprend la provision du stade 3 d'avant cette correction, commune aux deux
+modèles, et l'effet sur l'écart relatif est inférieur à 0,1 point.
+
+### D-044 Défauts sans perte publiée dans le backtest
+
+**Complète D-032.** Parmi les 12 122 défauts du test, 1 512 n'ont pas de perte
+exploitable : 1 492 sont sortis des données avec un code de défaut mais sans
+`actual_loss`, 20 sont encore ouverts. Ils étaient comptés à part, mais leur
+perte valait zéro dans `pertes_constatees`, qui est donc un **minorant**.
+
+- `pertes_constatees` garde sa définition (pertes chiffrées) pour rester
+  comparable aux versions précédentes ;
+- une colonne `pertes_non_resolus_estimees` s'y ajoute : capital au défaut ×
+  sévérité moyenne, pondérée par le capital, des pertes chiffrées de la même
+  année de défaut. C'est une estimation rétrospective, utilisée seulement
+  pour le backtest, jamais par les modèles ;
+- la note publie les deux mesures.
+
+Effet mesuré : les pertes du backtest augmentent de 15 à 37 % aux arrêtés de
+fin d'année (31 % au 31/12/2007 : 177 M$ au lieu de 135 M$). La couverture au
+31/12/2007 passe de 5-8 % à 4-6 %. Le constat de sous-provisionnement en sort
+renforcé ; l'écart entre les deux modèles n'est pas concerné.
+
+### D-045 Faisabilité de l'ancrage en présence du remboursement
+
+**Complète D-024 et D-040.** Avec un remboursement concurrent, la PD à 12 mois
+visée peut être inatteignable : en multipliant les hasards de défaut, on ne
+dépasse pas la probabilité de ne pas avoir remboursé avant le premier mois où
+le hasard est positif. `moteur.pd12_maximale` calcule cette borne ;
+`ancrer_matrice` sature les hasards des prêts concernés et émet un
+`AvertissementAncrage` avec leur nombre, au lieu de converger en silence.
+
+Effet mesuré : le cas se produit réellement, pour quelques prêts par arrêté
+(1 à 9 par lot de 20 000). Ce sont des prêts à deux mensualités de retard,
+avec une PD à 12 mois de 75 à 90 % et un hasard de remboursement de 11 à 27 %
+le premier mois : leur PD ancrée est plafonnée à 73-89 %. Les montants
+publiés ne changent pas, l'ancien code saturait déjà ces prêts sans le dire.
+La cause de fond est le modèle de remboursement, qui ignore le retard de
+paiement.
+
+### D-046 Maturation des étiquettes à la coupure d'entraînement
+
+**Précise D-010.** Les PD à 12 mois sont entraînées sur les arrêtés jusqu'au
+31/12/2005. L'étiquette d'un arrêté n'est connue que 12 mois plus tard : ces
+modèles n'auraient pu être estimés qu'à partir du 31/12/2006, et ils ont vu
+les défauts de 2006 des prêts 2000-2005. Aucun prêt de test n'est concerné
+(millésimes disjoints), mais les arrêtés de test de 2006 ne sont pas
+strictement hors période. D-010 le disait (« fenêtre de 12 mois se terminant
+au plus tard fin 2006 ») sans en tirer la conséquence. La même remarque vaut
+pour la LGD, dont les résolutions sont observées jusqu'à fin 2006 (D-028).
+
+Le résultat principal n'est pas modifié. Une sensibilité est ajoutée
+(`pipeline/etape_11_coupure_stricte.py`, `rapport/resultats/coupure_stricte.csv`) :
+les deux modèles sont réestimés sur les seuls arrêtés jusqu'au 31/12/2004,
+dont l'étiquette est connue au 31/12/2005, avec les hyperparamètres de
+LightGBM déjà retenus ; survie, remboursement, LGD et stades sont ceux du
+résultat principal, comme en D-042.
+
+Résultat : l'écart LightGBM / logistique au 31/12/2007 tombe de + 47 % à
++ 25 % (+ 38 % à + 24 % au 31/12/2008). LightGBM bouge peu (10,0 M$ contre
+10,5 M$) ; c'est la logistique qui provisionne davantage (8,1 M$ contre
+7,1 M$) et sous-estime moins les défauts de 2006-2010 (23,5 % des défauts
+prévus contre 16,5 %, AUC 0,803 contre 0,789). Le sens de l'écart est
+conservé, son ampleur dépend donc de l'année d'entraînement retirée : + 25 %
+est sous la borne basse de l'intervalle de D-042 (+ 27 %), qui ne mesure que
+l'incertitude d'échantillonnage à fenêtre d'entraînement donnée. La réponse
+publiée donne désormais les deux chiffres.

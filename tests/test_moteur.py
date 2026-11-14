@@ -1,5 +1,7 @@
 """Moteur vectorisé : identique au calcul prêt par prêt et aux cas à la main."""
 
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -140,3 +142,39 @@ def test_remboursement_nul_ne_change_rien():
     base = moteur.provisions(*args)
     assert np.allclose(moteur.provisions(*args, hasards_rembt=np.zeros((n, 40))), base)
     assert (moteur.provisions(*args, hasards_rembt=np.full((n, 40), 0.02))[1:3] < base[1:3]).all()
+
+
+def test_pd12_maximale_a_la_main():
+    # Hasards positifs les 3 premiers mois, remboursement de 50 % par mois :
+    # borne = 0,5 + 0 (plus personne après le mois 1, car défaut 0,5 + rembt 0,5).
+    h = np.full((1, 12), 0.01)
+    hp = np.full((1, 12), 0.5)
+    horizon = np.array([12])
+    np.testing.assert_allclose(moteur.pd12_maximale(h, horizon, hp), [0.5])
+    # Sans remboursement, la borne vaut 1 ; avec des hasards nuls, 0.
+    np.testing.assert_allclose(moteur.pd12_maximale(h, horizon), [1.0])
+    np.testing.assert_allclose(moteur.pd12_maximale(np.zeros((1, 12)), horizon, hp), [0.0])
+    # Premier hasard positif au mois 2 : la moitié est déjà remboursée.
+    h2 = h.copy()
+    h2[0, 0] = 0.0
+    np.testing.assert_allclose(moteur.pd12_maximale(h2, horizon, hp), [0.25])
+
+
+def test_ancrage_impossible_est_signale():
+    h = np.full((2, 24), 0.01)
+    hp = np.full((2, 24), 0.5)
+    horizon = np.array([12, 12])
+    pd12 = np.array([0.6, 0.1])  # 0,6 > borne de 0,5 ; 0,1 atteignable
+    with pytest.warns(moteur.AvertissementAncrage, match="1 prêt"):
+        a = moteur.ancrer_matrice(h, pd12, horizon, hp=hp)
+    obtenue = moteur.incidence(a[:, :12], hp[:, :12])[:, -1]
+    np.testing.assert_allclose(obtenue, [0.5, 0.1], atol=1e-9)
+    np.testing.assert_array_equal(a[:, 12:], h[:, 12:])
+
+
+def test_ancrage_possible_ne_signale_rien():
+    h = np.full((3, 24), 0.002)
+    hp = np.full((3, 24), 0.03)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", moteur.AvertissementAncrage)
+        moteur.ancrer_matrice(h, np.array([0.0, 0.01, 0.3]), np.array([12, 12, 6]), hp=hp)

@@ -8,6 +8,7 @@ identiques à ceux de ``ecl.ecl_pret`` prêt par prêt (vérifié en test).
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 
 import numpy as np
@@ -114,6 +115,34 @@ def incidence(hd: np.ndarray, hp: np.ndarray | None = None) -> np.ndarray:
     return np.cumsum(survie_avant * hd, axis=1)
 
 
+class AvertissementAncrage(UserWarning):
+    """La PD à 12 mois visée dépasse ce que l'ancrage peut atteindre (D-045)."""
+
+
+TOLERANCE_ANCRAGE = 1e-9
+
+
+def pd12_maximale(
+    h: np.ndarray, horizon_ancrage: np.ndarray, hp: np.ndarray | None = None
+) -> np.ndarray:
+    """Plus grande PD atteignable dans l'horizon en multipliant les hasards (D-045).
+
+    Quand le facteur d'ancrage tend vers l'infini, le hasard de défaut vaut
+    ``1 - hp`` partout où il était positif : la borne est l'incidence obtenue
+    ainsi. Elle vaut 0 si tous les hasards de l'horizon sont nuls, et reste
+    sous 1 dès que le remboursement précède le premier hasard positif.
+    """
+    n, m = h.shape
+    k = int(min(m, max(horizon_ancrage.max(initial=0), 0)))
+    if k == 0:
+        return np.zeros(n)
+    masque = np.arange(k)[None, :] < horizon_ancrage[:, None]
+    sature = np.where(masque & (h[:, :k] > 0), 1.0, 0.0)
+    if hp is None:
+        return sature.max(axis=1)
+    return incidence(sature, np.where(masque, hp[:, :k], 0.0))[:, -1]
+
+
 def ancrer_matrice(
     h: np.ndarray,
     pd12: np.ndarray,
@@ -125,6 +154,10 @@ def ancrer_matrice(
 
     Avec ``hp`` (hasards de remboursement), la cible est la probabilité de
     défaut dans l'horizon en présence du remboursement (D-040).
+
+    Si la cible dépasse ``pd12_maximale`` (remboursement trop fort ou hasards
+    nuls), elle ne peut pas être atteinte : les hasards sont saturés et un
+    ``AvertissementAncrage`` donne le nombre de prêts concernés (D-045).
     """
     h = h.copy()
     n, m = h.shape
@@ -139,9 +172,17 @@ def ancrer_matrice(
             return 1 - np.prod(1 - hd, axis=1)
         return incidence(hd, tete_p)[:, -1] if k else np.zeros(n)
 
+    impossible = pd12 > pd12_maximale(h, horizon_ancrage, hp) + TOLERANCE_ANCRAGE
+    if impossible.any():
+        warnings.warn(
+            f"ancrage : PD à 12 mois inatteignable pour {int(impossible.sum())} prêt(s) "
+            f"sur {n}, hasards saturés",
+            AvertissementAncrage,
+            stacklevel=2,
+        )
     bas, haut = np.zeros(n), np.ones(n)
     for _ in range(200):
-        trop_bas = pd_tete(haut) < pd12
+        trop_bas = (pd_tete(haut) < pd12) & ~impossible
         if not trop_bas.any():
             break
         haut = np.where(trop_bas, haut * 2, haut)
@@ -150,7 +191,10 @@ def ancrer_matrice(
         sous = pd_tete(milieu) < pd12
         bas, haut = np.where(sous, milieu, bas), np.where(sous, haut, milieu)
     c = np.where(pd12 > 0, haut, 0.0)
-    h[:, :k] = np.where(masque, np.minimum(c[:, None] * h[:, :k], 1.0), h[:, :k])
+    c = np.where(impossible, np.inf, c)
+    with np.errstate(invalid="ignore"):
+        produit = np.where(h[:, :k] > 0, c[:, None] * h[:, :k], 0.0)
+    h[:, :k] = np.where(masque, np.minimum(produit, 1.0), h[:, :k])
     return h
 
 

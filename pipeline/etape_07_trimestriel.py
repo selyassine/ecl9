@@ -140,17 +140,40 @@ def actifs(arrete: pd.Period, octroi, m) -> pd.DataFrame:
     return p
 
 
+def estimer_pertes_non_resolues(defauts: pd.DataFrame) -> pd.Series:
+    """Perte estimée des défauts sans perte chiffrée, nulle pour les autres (D-044).
+
+    Capital au défaut × sévérité moyenne, pondérée par le capital, des pertes
+    chiffrées de la même année de défaut.
+    """
+    annee = defauts["mois_defaut"].dt.year
+    chiffre = defauts[defauts["resolution"].eq("perte")]
+    g = chiffre.groupby(chiffre["mois_defaut"].dt.year)
+    severite = g["perte_montant"].sum() / g["crd_defaut"].sum()
+    globale = chiffre["perte_montant"].sum() / chiffre["crd_defaut"].sum()
+    s = annee.map(severite).fillna(globale)
+    return (s * defauts["crd_defaut"]).where(defauts["resolution"].eq("non_resolu"), 0.0)
+
+
 def pertes_constatees(prets: pd.DataFrame, defauts: pd.DataFrame, arrete, horizon_mois):
-    """Perte constatée de chaque prêt actif : défaut après l'arrêté, dans l'horizon."""
+    """Pertes de chaque prêt actif : défaut après l'arrêté, dans l'horizon.
+
+    Renvoie la perte chiffrée (0 pour une régularisation et, faute de montant,
+    pour un défaut non résolu), l'indicatrice des défauts non résolus et leur
+    perte estimée (D-044) : la perte chiffrée seule est un minorant.
+    """
     d = defauts.set_index("loan_id").reindex(prets["loan_id"])
-    dans = (d["mois_defaut"] > arrete) & (d["mois_defaut"] <= arrete + horizon_mois)
-    perte = np.where(dans & d["resolution"].eq("regularisation"), 0.0, d["perte_montant"])
-    perte = np.where(dans, perte, 0.0)
-    non_resolu = (dans & d["resolution"].eq("non_resolu")).to_numpy()
-    return np.nan_to_num(perte), non_resolu
+    dans = ((d["mois_defaut"] > arrete) & (d["mois_defaut"] <= arrete + horizon_mois)).to_numpy()
+    chiffree = dans & d["resolution"].eq("perte").to_numpy()
+    non_resolu = dans & d["resolution"].eq("non_resolu").to_numpy()
+    perte = np.where(chiffree, d["perte_montant"].to_numpy(dtype=float), 0.0)
+    estimee = np.where(non_resolu, d["perte_estimee"].to_numpy(dtype=float), 0.0)
+    return perte, non_resolu, estimee
 
 
-def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=None):
+def calculer_arrete(
+    arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=None, crd_defauts=None
+):
     """Lignes par modèle et stade ; avec ``hpi``, provision pondérée des scénarios (D-034)."""
     _, modele_survie, modele_lgd, modele_rembt = modeles
     p = actifs(arrete, octroi, m)
@@ -257,7 +280,13 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
         & (defauts["annee_octroi"] <= arrete.year)
     ]
     lgd3 = modele_lgd.predire(d3) if len(d3) else np.zeros(0)
-    perte3 = np.where(d3["resolution"].eq("regularisation"), 0.0, d3["perte_montant"])
+    perte3 = np.where(d3["resolution"].eq("perte"), d3["perte_montant"].astype(float), 0.0)
+    # Exposition du stade 3 : capital à l'arrêté, à défaut capital au défaut (D-043).
+    crd3 = d3["crd_defaut"].to_numpy(dtype=float)
+    if crd_defauts is not None and len(d3):
+        a = crd_defauts[crd_defauts["period"] == arrete].set_index("loan_id")["current_upb"]
+        a = a.reindex(d3["loan_id"]).to_numpy(dtype=float)
+        crd3 = np.where(np.isfinite(a) & (a > 0), a, crd3)
 
     if hpi is None:
         # Détail par prêt (hors Git) pour le bootstrap et la grille de seuils.
@@ -273,11 +302,11 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
                 },
             }
         )
-        e3 = lgd3 * d3["crd_defaut"].to_numpy()
+        e3 = lgd3 * crd3
         stade3 = pd.DataFrame(
             {
                 "loan_id": d3["loan_id"].to_numpy(),
-                "crd": d3["crd_defaut"].to_numpy(),
+                "crd": crd3,
                 "retard": np.nan,
                 **{f"stade_{nom}": 3 for nom in MODELES},
                 **{f"ecl_{nom}": e3 for nom in MODELES},
@@ -309,10 +338,11 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
         horizon = np.where(st == 1, HORIZON_STADE1_MOIS, 10_000)
         perte = np.zeros(len(p))
         non_resolu = np.zeros(len(p), dtype=bool)
+        estimee = np.zeros(len(p))
         for h_mois in np.unique(horizon):
             masque = horizon == h_mois
-            pr, nr = pertes_constatees(p[masque], defauts, arrete, int(h_mois))
-            perte[masque], non_resolu[masque] = pr, nr
+            pr, nr, es = pertes_constatees(p[masque], defauts, arrete, int(h_mois))
+            perte[masque], non_resolu[masque], estimee[masque] = pr, nr, es
         for s in (1, 2):
             masque = st == s
             lignes.append(
@@ -325,6 +355,7 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
                     "ecl": ecl[masque].sum(),
                     "pertes_constatees": perte[masque].sum(),
                     "defauts_non_resolus": int(non_resolu[masque].sum()),
+                    "pertes_non_resolus_estimees": estimee[masque].sum(),
                     **{c: v[masque].sum() for c, v in par_scenario.items()},
                 }
             )
@@ -334,17 +365,18 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
                 "modele": nom,
                 "stade": 3,
                 "prets": len(d3),
-                "encours": d3["crd_defaut"].sum(),
-                "ecl": float(np.sum(lgd3 * d3["crd_defaut"])),
-                "pertes_constatees": float(np.nansum(perte3)),
+                "encours": crd3.sum(),
+                "ecl": float(np.sum(lgd3 * crd3)),
+                "pertes_constatees": float(perte3.sum()),
                 "defauts_non_resolus": int(d3["resolution"].eq("non_resolu").sum()),
-                **{c: float(np.sum(lgd3 * d3["crd_defaut"])) for c in par_scenario},
+                "pertes_non_resolus_estimees": float(d3["perte_estimee"].sum()),
+                **{c: float(np.sum(lgd3 * crd3)) for c in par_scenario},
             }
         )
         # Par génération, à la fin de l'année d'octroi : tout à maturité (D-032).
         if hpi is None and arrete.month == 12 and arrete.year in ANNEES_TEST:
             g = (p["annee_octroi"] == arrete.year).to_numpy()
-            perte_vie, nr_vie = pertes_constatees(p[g], defauts, arrete, 10_000)
+            perte_vie, nr_vie, es_vie = pertes_constatees(p[g], defauts, arrete, 10_000)
             details.append(
                 {
                     "millesime": arrete.year,
@@ -354,6 +386,7 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
                     "ecl_maturite": np.concatenate(resultats[nom]["ecl_maturite"])[g].sum(),
                     "pertes_constatees": perte_vie.sum(),
                     "defauts_non_resolus": int(nr_vie.sum()),
+                    "pertes_non_resolus_estimees": es_vie.sum(),
                 }
             )
     return lignes, details
@@ -379,6 +412,9 @@ def main(nom_trajectoire: str) -> None:
     defauts = defauts[defauts["echantillon"].eq("test")]
     for c in ("mois_defaut", "mois_fin_defaut"):
         defauts[c] = pd.PeriodIndex(defauts[c], freq="M")
+    defauts["perte_estimee"] = estimer_pertes_non_resolues(defauts)
+    crd_defauts = pd.read_parquet(INTER / "crd_defauts_arretes.parquet")
+    crd_defauts["period"] = pd.PeriodIndex(crd_defauts["period"], freq="M")
 
     sortie = SORTIES / "trimestriel"
     sortie.mkdir(parents=True, exist_ok=True)
@@ -398,7 +434,9 @@ def main(nom_trajectoire: str) -> None:
         if fichier.exists():
             lig, g = pd.read_pickle(fichier)
         else:
-            lig, g = calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi)
+            lig, g = calculer_arrete(
+                arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi, crd_defauts
+            )
             fichier.parent.mkdir(exist_ok=True)
             pd.to_pickle((lig, g), fichier)
         lignes += lig

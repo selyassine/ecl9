@@ -18,3 +18,4 @@ les résultats publiés dans `rapport/resultats/`.
 | 8 | `etape_08_double_calcul_r.py` : double calcul R sur 50 prêts réels | 5 |
 | 9 | `etape_09_sensibilites.py` : bootstrap de l'écart, grilles de sensibilité | 6 |
 | 10 | `etape_10_bootstrap_modeles.py` : intervalle avec modèles réestimés (D-042) | après la v1 |
+| 11 | `etape_11_coupure_stricte.py` : PD à 12 mois réestimées sans les arrêtés de 2005 (D-046) | revue corrective |
