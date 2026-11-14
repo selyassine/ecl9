@@ -35,9 +35,9 @@ jobs:
           version: 1.7.32
       - name: Rendu de la note (résultats versionnés seulement)
         run: |
-          quarto render rapport/note.qmd --output index.html
+          cd rapport && quarto render note.qmd && cd ..
           mkdir -p _site
-          mv rapport/index.html _site/index.html
+          mv rapport/note.html _site/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

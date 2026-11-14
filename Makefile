@@ -40,7 +40,7 @@ sensibilites: trimestriel
 pipeline: exploration sensibilites double-calcul
 
 note:
-	cd rapport && quarto render note.qmd --output index.html
+	cd rapport && quarto render note.qmd
 
 tests:
 	pytest -m "not donnees"

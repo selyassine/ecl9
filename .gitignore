@@ -40,6 +40,7 @@ rapport/*_files/
 
 # Rendu Quarto local
 rapport/index.html
+rapport/note.html
 rapport/*_files/
 rapport/.quarto/
 _site/

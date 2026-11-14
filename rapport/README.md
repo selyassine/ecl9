@@ -8,5 +8,5 @@ Rendu local :
 
 ```bash
 pip install -e ".[rapport]"
-cd rapport && quarto render note.qmd --output index.html
+cd rapport && quarto render note.qmd   # rapport/note.html
 ```
