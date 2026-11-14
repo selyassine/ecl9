@@ -562,3 +562,33 @@ scénario ajoute ensuite au logit ancré son écart au central, mois par mois
 (`logit h_s - logit h_central` pour le modèle de survie, plus l'écart de la
 surcouche le cas échéant). La PD à 12 mois du modèle reste la prévision du
 scénario central. Rien d'autre ne change.
+
+---
+
+## 2026-11-14 — Semaine 6 : intervalle de confiance, grilles de sensibilité, note : protocole, avant calcul
+
+### D-037 Intervalle de confiance de l'écart logistique / LightGBM
+
+À chaque arrêté trimestriel (macro figée, D-031), les prêts du portefeuille,
+stade 3 compris, sont tirés avec remise, 1 000 fois, graine `20261112`
+(D-014). Pour chaque tirage : écart relatif `Σ ECL LightGBM / Σ ECL
+logistique - 1` et écart absolu. L'intervalle publié est celui des centiles
+2,5 et 97,5. Les modèles sont tenus fixes : l'intervalle mesure
+l'incertitude due à la composition du portefeuille, pas celle de
+l'estimation des modèles, qui demanderait de les réestimer à chaque tirage.
+
+### D-038 Grilles de sensibilité
+
+- **Seuil du stade 2** : part de l'encours en stade 2 pour un rapport des PD
+  annualisées de 1,5 ; 2 ; 2,5 ; 3 ; 4, et avec le seul critère de retard,
+  par modèle et par arrêté (D-003).
+- **Pondérations des scénarios** : provision pondérée pour 50/30/20
+  (référence), 60/20/20, 40/40/20, 1/3 chacun, et chaque scénario seul, avec
+  et sans surcouche (D-034). Les provisions par scénario étant déjà
+  calculées, seule la moyenne change.
+
+### D-039 Note de provisionnement
+
+`rapport/note.qmd`, rendue par Quarto et publiée sur GitHub Pages par
+l'intégration continue. Elle ne lit que les fichiers de `rapport/resultats/`,
+versionnés ; elle ne touche jamais aux données Freddie Mac.

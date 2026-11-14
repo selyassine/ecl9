@@ -162,7 +162,7 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
         cltv0 = sc.cltv_arrete(
             p, hpi.reindex(mois_octroi - 1).to_numpy(dtype=float), float(hpi.loc[arrete])
         )
-    resultats = {nom: {"stade": [], "ecl": [], "ecl_maturite": []} for nom in MODELES}
+    resultats = {nom: {"stade": [], "ecl": [], "ecl_maturite": [], "ratio": []} for nom in MODELES}
     for debut in range(0, len(p), TAILLE_LOT):
         sl = slice(debut, debut + TAILLE_LOT)
         h = moteur.projeter_hasards(modele_survie, p.iloc[sl], arrete, traj, n_max)
@@ -191,6 +191,15 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
             )
             args = (crd[sl], taux[sl], restants[sl], lgd[sl], pd12, h)
             resultats[nom]["stade"].append(st)
+            # Rapport des PD à maturité annualisées (D-030), pour la grille de seuils.
+            with np.errstate(divide="ignore", invalid="ignore"):
+                resultats[nom]["ratio"].append(
+                    staging.pd_annualisee(pd_vie, restants[sl])
+                    / staging.pd_annualisee(
+                        p[f"pd_vie_octroi_{nom}"].to_numpy()[sl],
+                        p["duree_initiale"].to_numpy()[sl],
+                    )
+                )
             resultats[nom]["ecl"].append(moteur.provisions(st, *args))
             if hpi is None:
                 resultats[nom]["ecl_maturite"].append(moteur.provisions(np.full(len(st), 2), *args))
@@ -208,6 +217,37 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
     ]
     lgd3 = modele_lgd.predire(d3) if len(d3) else np.zeros(0)
     perte3 = np.where(d3["resolution"].eq("regularisation"), 0.0, d3["perte_montant"])
+
+    if hpi is None:
+        # Détail par prêt (hors Git) pour le bootstrap et la grille de seuils.
+        prets = pd.DataFrame(
+            {
+                "loan_id": p["loan_id"],
+                "crd": crd,
+                "retard": p["retard"].fillna(0).to_numpy(),
+                **{
+                    f"{c}_{nom}": np.concatenate(resultats[nom][c])
+                    for nom in MODELES
+                    for c in ("stade", "ecl", "ratio")
+                },
+            }
+        )
+        e3 = lgd3 * d3["crd_defaut"].to_numpy()
+        stade3 = pd.DataFrame(
+            {
+                "loan_id": d3["loan_id"].to_numpy(),
+                "crd": d3["crd_defaut"].to_numpy(),
+                "retard": np.nan,
+                **{f"stade_{nom}": 3 for nom in MODELES},
+                **{f"ecl_{nom}": e3 for nom in MODELES},
+                **{f"ratio_{nom}": np.nan for nom in MODELES},
+            }
+        )
+        dossier = SORTIES / "trimestriel" / "prets"
+        dossier.mkdir(parents=True, exist_ok=True)
+        pd.concat([prets, stade3], ignore_index=True).to_parquet(
+            dossier / f"{arrete}.parquet", index=False
+        )
 
     lignes, details = [], []
     for nom in MODELES:

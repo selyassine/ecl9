@@ -16,27 +16,39 @@
 > on loans originated in 2000-2005 with observation dates up to end-2005, and
 > tested on the 2006-2008 vintages so that they cross the crisis without having
 > seen it. All definitions were fixed and dated in
-> [`docs/decisions.md`](docs/decisions.md) before any model was fitted. The
-> answer may well be "not demonstrably". Report and documentation are in French.
+> [`docs/decisions.md`](docs/decisions.md) before any model was fitted.
+> **Answer:** yes, but the effect is second-order. With everything else equal,
+> LightGBM raises the allowance by 27-41% between end-2006 and end-2008
+> (+38% at 31/12/2007, 95% bootstrap interval +35% to +40%), and by 6-8% in
+> 2009-2010. Yet both models, trained before the crisis, cover only 6-9% of the
+> losses later realised over the same horizon. Report and documentation are in
+> French.
 
-**Résultat provisoire (semaine 5) : ni l'un ni l'autre ne voit venir la crise.**
-Entraînés sur 2000-2005, la logistique et LightGBM prévoient en 2008 entre 10
-et 25 % des défauts à 12 mois réellement observés. LightGBM classe un peu mieux
-les prêts (AUC 0,815 contre 0,789 sur 2006-2010) et sous-estime moins (31 % des
-défauts contre 17 %) ([`pd12.md`](rapport/resultats/pd12.md)). Sur 2000-2005,
-aucune sensibilité au chômage ni aux prix immobiliers n'est identifiable
-([`survie.md`](rapport/resultats/survie.md)), et la LGD est sous-estimée d'un
-facteur 4 sur la crise ([`lgd_moteur.md`](rapport/resultats/lgd_moteur.md)).
+**Note de provisionnement : <https://selyassine.github.io/ecl9/>**
 
-Au 31/12/2007, la provision LightGBM dépasse de 38 % celle de la logistique
-(11,7 contre 8,5 M$ pour 15,2 Md$ d'encours), mais les deux ne couvrent que 6 à
-9 % des pertes constatées ensuite sur le même horizon. L'écart se referme à
-+ 6 à + 8 % en 2009-2010, quand les défauts déjà survenus dominent. Le critère
-de dégradation (PD à maturité doublée) ne classe aucun prêt sans retard en
-stade 2. Les scénarios pondérés n'ajoutent que 0,4 à 3,6 %, et 14 % au plus
-avec une sensibilité chômage et prix tirée de la littérature, publiée à part
-([`stades_backtest.md`](rapport/resultats/stades_backtest.md)). L'intervalle de
-confiance de l'écart viendra en semaine 6.
+**Réponse : oui, LightGBM change la provision, mais beaucoup moins que
+l'erreur commune aux deux modèles.** Avec les mêmes variables, la même survie,
+la même LGD et les mêmes stades, LightGBM provisionne 27 à 41 % de plus que la
+logistique entre fin 2006 et fin 2008 (au 31/12/2007 : 11,7 contre 8,5 M$,
+écart + 38 %, intervalle bootstrap à 95 % de + 35 à + 40 %), puis 6 à 8 % de
+plus en 2009-2010, quand les défauts déjà survenus dominent. Mais entraînés sur
+2000-2005, les deux modèles ne voient pas venir la crise : au 31/12/2007, leurs
+provisions ne couvrent que 6 à 9 % des pertes constatées ensuite sur le même
+horizon.
+
+- PD à 12 mois : LightGBM classe un peu mieux (AUC 0,815 contre 0,789 sur
+  2006-2010) et sous-estime moins les défauts (31 % des défauts prévus contre
+  17 %) ([`pd12.md`](rapport/resultats/pd12.md)).
+- Survie et LGD : aucune sensibilité au chômage ni aux prix n'est
+  identifiable sur 2000-2005 ([`survie.md`](rapport/resultats/survie.md)) ;
+  la LGD est sous-estimée d'un facteur 4 sur la crise
+  ([`lgd_moteur.md`](rapport/resultats/lgd_moteur.md)).
+- Stade 2 : au seuil retenu (PD à maturité doublée), le critère de
+  dégradation n'ajoute rien au retard de paiement ; au seuil 1,5, la baisse
+  des taux de 2009-2010 fait basculer jusqu'à 82 % de l'encours.
+- Scénarios : pondérés 50/30/20, ils ajoutent 0,4 à 3,6 % ; 14 % au plus avec
+  une sensibilité chômage et prix tirée de la littérature, publiée à part
+  ([`stades_backtest.md`](rapport/resultats/stades_backtest.md)).
 
 ## État d'avancement
 
@@ -47,7 +59,7 @@ confiance de l'écart viendra en semaine 6.
 | 3 | PD à maturité par survie, variables macro | [fait](rapport/resultats/survie.md) |
 | 4 | LGD, EAD, moteur de calcul et tests à la main | [fait](rapport/resultats/lgd_moteur.md) |
 | 5 | Stades, scénarios, backtest sur la crise, double calcul R | [fait](rapport/resultats/stades_backtest.md) |
-| 6 | Bootstrap, note Quarto, README, mise en ligne | à faire |
+| 6 | Bootstrap, note Quarto, README, mise en ligne | [fait](https://selyassine.github.io/ecl9/) |
 
 ## Méthode
 
@@ -75,7 +87,7 @@ Le détail et la justification de chaque choix sont dans
 [`docs/decisions.md`](docs/decisions.md), daté du 12 novembre 2026, avant tout
 résultat.
 
-## Validation prévue
+## Validation
 
 - Découpage temporel : entraînement 2000-2005, test 2006-2008.
 - PD : AUC, Gini, calibration par classe de risque, PSI.
@@ -85,13 +97,17 @@ résultat.
 - Tests : chaque brique vérifiée sur un cas calculé à la main
   ([`tests/test_cas_a_la_main.py`](tests/test_cas_a_la_main.py)).
 
-## Résultats à publier
+## Résultats publiés
 
 - L'écart de provision entre logistique et LightGBM, avec un intervalle de
-  confiance bootstrap.
-- La part du portefeuille en stade 2 selon le seuil retenu.
-- La procyclicité : provision trimestre par trimestre de 2006 à 2010.
-- La sensibilité aux pondérations des scénarios.
+  confiance bootstrap : [`bootstrap_ecart.csv`](rapport/resultats/bootstrap_ecart.csv).
+- La part du portefeuille en stade 2 selon le seuil :
+  [`grille_seuils_stade2.csv`](rapport/resultats/grille_seuils_stade2.csv).
+- La procyclicité, provision trimestre par trimestre de 2006 à 2010 :
+  [`trimestriel_figee.csv`](rapport/resultats/trimestriel_figee.csv) et
+  [`trimestriel_scenarios.csv`](rapport/resultats/trimestriel_scenarios.csv).
+- La sensibilité aux pondérations des scénarios :
+  [`grille_ponderations.csv`](rapport/resultats/grille_ponderations.csv).
 
 ## Reproduire
 
@@ -105,7 +121,12 @@ pytest                      # tests, sans les données
 # (portail Clarity de Freddie Mac, compte gratuit : voir data/README.md)
 make donnees                # FRED, décompression et empreintes SHA-256
 make exploration            # panneau prêt-mois et taux de défaut par cohorte
+make pipeline               # modèles, provisions 2006-2010, double calcul R, sensibilités
+make note                   # note Quarto (Quarto installé à part)
 ```
+
+Le pipeline complet prend environ une heure sur une machine de 4 cœurs et
+16 Go.
 
 Les données ne sont pas versionnées : la licence Freddie Mac en interdit la
 redistribution. Le dépôt contient seulement le

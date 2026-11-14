@@ -37,3 +37,9 @@ rapport/*_files/
 
 # Système
 .DS_Store
+
+# Rendu Quarto local
+rapport/index.html
+rapport/*_files/
+rapport/.quarto/
+_site/

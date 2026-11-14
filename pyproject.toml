@@ -30,6 +30,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6"]
 eda = ["matplotlib>=3.8", "jupyter>=1.0"]
+rapport = ["matplotlib>=3.8", "jupyter>=1.0", "tabulate>=0.9"]
 
 [project.urls]
 Repository = "https://github.com/selyassine/ecl9"

@@ -45,8 +45,10 @@ identiques pour les deux modèles.
 La raison : la PD à maturité est dominée par les hasards de survie au-delà
 de 12 mois, et le modèle de survie n'a appris aucune sensibilité au chômage
 ni aux prix (D-026). Seule la PD à 12 mois, ancrée sur les 12 premiers mois,
-bouge avec l'état du prêt. La grille de seuils (1,5 à 4) sera publiée en
-semaine 6.
+bouge avec l'état du prêt. La grille de seuils (1,5 à 4) est dans
+[`grille_seuils_stade2.csv`](grille_seuils_stade2.csv) : au seuil 1,5, la baisse
+des taux de 2009-2010 fait basculer jusqu'à 82 % de l'encours en stade 2
+(voir la note, section 6).
 
 ## Scénarios et surcouche (D-034, D-036)
 

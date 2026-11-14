@@ -1,0 +1,45 @@
+name: Note
+
+on:
+  push:
+    branches: [main]
+    paths: ["rapport/**", ".github/workflows/note.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  rendu:
+    name: Rendu Quarto et GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Installation
+        run: pip install -e ".[rapport]"
+      - uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.7.32
+      - name: Rendu de la note (résultats versionnés seulement)
+        run: |
+          quarto render rapport/note.qmd --output index.html
+          mkdir -p _site
+          mv rapport/index.html _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploiement
+        uses: actions/deploy-pages@v4
