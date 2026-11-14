@@ -24,6 +24,312 @@
       "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=UNRATE",
       "obtenu_le": "2026-11-13"
     },
+    "brut/fred/etats/AKSTHPI.csv": {
+      "sha256": "5f9d57203e0101136bb85d1104049bc5c4f6944950958fb6a4a0b9c950160c14",
+      "octets": 3709,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=AKSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/ALSTHPI.csv": {
+      "sha256": "cb02d2fcc9ae4ef99bad098c173b448b43f9b2b1b83d27ea4ba0dd5acdd62bac",
+      "octets": 3716,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=ALSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/ARSTHPI.csv": {
+      "sha256": "345eabd964a3b9378a7eede4d8071f6ae16acbb6216be212568e3c0d7acc8c56",
+      "octets": 3714,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=ARSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/AZSTHPI.csv": {
+      "sha256": "d7f48b62f89e4da3d98094884d71a0104d4bf6a8e51bfddec387d22eca89d1b6",
+      "octets": 3712,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=AZSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/CASTHPI.csv": {
+      "sha256": "1258decbd1751fdcd7f559892a2f9c56e5dfe9f42cde5a31fa188145a64f08db",
+      "octets": 3713,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CASTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/COSTHPI.csv": {
+      "sha256": "a36f41721110ecc6df9ff32038de409b4f63e953f37dc1e2e357d792355d58bd",
+      "octets": 3713,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=COSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/CTSTHPI.csv": {
+      "sha256": "d025d33947b81c464d7048561499a59edd1bba655988e911a432293ef79adf89",
+      "octets": 3715,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CTSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/DCSTHPI.csv": {
+      "sha256": "b8a17e0837edb1af09792b98e947bcf9348c71b66697557492c318917a9419e1",
+      "octets": 3725,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DCSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/DESTHPI.csv": {
+      "sha256": "cc197b6095d13670886bad568eb38f9eb5f525b3666c1a6c89a84f7afc6aeb8c",
+      "octets": 3713,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DESTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/FLSTHPI.csv": {
+      "sha256": "f77a1ebb4af64392e849d49a13bedb3477fad97f380a096a865a37fb34d96a6c",
+      "octets": 3712,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=FLSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/GASTHPI.csv": {
+      "sha256": "50f219b6dcff2bda9107be96d82ae5928d4790711a41ea5147f66e38c9b88eb9",
+      "octets": 3713,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=GASTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/HISTHPI.csv": {
+      "sha256": "e5228357f5413d99ec861b5dd6d0d7c89e74b6efb0cc4511eecacbf230b142cb",
+      "octets": 3709,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=HISTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/IASTHPI.csv": {
+      "sha256": "f45154317b13658f1d518f391fd4bd8cb9a4d7cd4a8fa22d98eb07e0d57259ed",
+      "octets": 3704,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=IASTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/IDSTHPI.csv": {
+      "sha256": "1e45a43af9fb088699aaec766f7e8693d3b49320065eae857ae7aea768166d17",
+      "octets": 3715,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=IDSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/ILSTHPI.csv": {
+      "sha256": "56722f12cd58e8ae2e23739793c226784abaeda6f58fe1146c00405273e9a377",
+      "octets": 3712,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=ILSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/INSTHPI.csv": {
+      "sha256": "7441e37ccf7a89fb7fbd1d3792bd8c97e55706842249a70dd3f32fea79e1b961",
+      "octets": 3711,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=INSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/KSSTHPI.csv": {
+      "sha256": "35c6dbe393059f4b5945e95c43224c1f847db9dca15afe49cdcf0e3aa92f2283",
+      "octets": 3712,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=KSSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/KYSTHPI.csv": {
+      "sha256": "82333f65df23365f93131a0259d6fd971c6b4c97fa980388170fb41dd280ecd4",
+      "octets": 3713,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=KYSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/LASTHPI.csv": {
+      "sha256": "a5747f637b7d63815fb90700e036e2f9aa0ac00354470e4bf34d727fec9b02d9",
+      "octets": 3711,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=LASTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/MASTHPI.csv": {
+      "sha256": "2f8002de19b55cbedf63ad226aed86b5deab8d0ef7ad179f443a12bc71a88317",
+      "octets": 3732,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MASTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/MDSTHPI.csv": {
+      "sha256": "6ec72027caf46ea0cc66d5bce27a784af21d3af88a3a21589a149087a8382ba2",
+      "octets": 3713,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MDSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/MESTHPI.csv": {
+      "sha256": "cef7d27ffa8e152e7522ca4410239b3c2c8a17e7bdd9bd02a63b73e689f0bbbe",
+      "octets": 3721,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MESTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/MISTHPI.csv": {
+      "sha256": "60d385f039898dba33f5ab3602fa6d582363587d40fadf6595011431c1f96e72",
+      "octets": 3701,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MISTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/MNSTHPI.csv": {
+      "sha256": "41ca0d9e2aa684b3a425f2094e434a6716cf70c8c02e747e43ef7dea2cd565c9",
+      "octets": 3709,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MNSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/MOSTHPI.csv": {
+      "sha256": "aabf8b66404ca42b5b16e707609a23a8d8c3d0d200074371adc79860222d6a1d",
+      "octets": 3715,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MOSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/MSSTHPI.csv": {
+      "sha256": "48b75a1deb39b3c96a8873462cbf5061065cc625b09ac61b39a47e1ee3d10a32",
+      "octets": 3711,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MSSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/MTSTHPI.csv": {
+      "sha256": "b4bb5df3d220d912f6eb597edcafac065b996f673f3a19e10c61fed1780a5092",
+      "octets": 3706,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MTSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/NCSTHPI.csv": {
+      "sha256": "da99ba42f8cb0556681d3f6ca361506d5d149bf86bb920bd49d1daf77836f560",
+      "octets": 3712,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=NCSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/NDSTHPI.csv": {
+      "sha256": "3d6794749693b31bc58585ea352af4eb2e60a71f2caa7968f7b8c5b1cbad0788",
+      "octets": 3706,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=NDSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/NESTHPI.csv": {
+      "sha256": "f3d959a48a57e20f384ae7e2dcb0026fdc1b76ca775f2d92722d172daa7a2ce5",
+      "octets": 3712,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=NESTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/NHSTHPI.csv": {
+      "sha256": "0f6b77a51604ed6c17c067f59bf7fa18b4a40035c6b4cdc9425c0eaefcbf4bad",
+      "octets": 3709,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=NHSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/NJSTHPI.csv": {
+      "sha256": "319bad4d94d2488d0a7a66c4bc3ae41fd4bf0ee5fa037107708e6bdd61e632e6",
+      "octets": 3713,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=NJSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/NMSTHPI.csv": {
+      "sha256": "42b14d0ff44533b3d12a9a5f4e46f378d4ddefc8a2343b38d2268656c411c510",
+      "octets": 3711,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=NMSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/NVSTHPI.csv": {
+      "sha256": "aa6ecd302f70047bf556a94b9323969bf9f905439b9fc18c24e4c98472861bec",
+      "octets": 3714,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=NVSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/NYSTHPI.csv": {
+      "sha256": "24847a07873a1a583b2624f696f831b8d90c68af2e399f480593f8220ffdc952",
+      "octets": 3724,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=NYSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/OHSTHPI.csv": {
+      "sha256": "30a930e0b9054efac9c9ecccf9a021204163adc63161ff6a38eb8d9a24c958af",
+      "octets": 3710,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=OHSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/OKSTHPI.csv": {
+      "sha256": "48091bcb5d1add96d6085526faec61a6daa59cb0247fa62ff05c46708c13c0b2",
+      "octets": 3708,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=OKSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/ORSTHPI.csv": {
+      "sha256": "434e9225fb1cf26f5847927041dc8608a51bb1e8a811859c99672a16d385475c",
+      "octets": 3689,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=ORSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/PASTHPI.csv": {
+      "sha256": "8ea2afa2d6bd7a79dd30026ea6c4fbe918fccd0f1a6f58593755b7cd10e5b3b6",
+      "octets": 3712,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=PASTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/RISTHPI.csv": {
+      "sha256": "2fba146a462790884fad9e69a8235280711190aee175aeb08be1e1776f9a3269",
+      "octets": 3717,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=RISTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/SCSTHPI.csv": {
+      "sha256": "a8b112a688d9a90e4d8326ffbf95947ea9f82f2ef719a7168fd2cf6596561625",
+      "octets": 3714,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SCSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/SDSTHPI.csv": {
+      "sha256": "cbdb9b8513b19a27348fa17ceae3ff4c2cacb1ab13c27111f996082508fa550e",
+      "octets": 3705,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SDSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/TNSTHPI.csv": {
+      "sha256": "dbe44bfffa34ef6045ab1b5e62aa1c00261695bc6d8aaa1aa0bd719f1b59780f",
+      "octets": 3707,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=TNSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/TXSTHPI.csv": {
+      "sha256": "49fdf250ad1d85b0d668e7c6019d09bb08e4fec892f11fabce481ea4e0bd1487",
+      "octets": 3713,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=TXSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/UTSTHPI.csv": {
+      "sha256": "91ac48a40285edd7bdd7f8c868515d619ea79073463490da92276ffe568cb24b",
+      "octets": 3712,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=UTSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/VASTHPI.csv": {
+      "sha256": "ff9583dc38427053ac5f51c308e833a8cbb41ec3ccbd14c8bb904dfe318d607d",
+      "octets": 3712,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=VASTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/VTSTHPI.csv": {
+      "sha256": "1199e7dc64b19a5e3376541f2ac59361512a6279b777ee2f5b6d565282ce14bc",
+      "octets": 3715,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=VTSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/WASTHPI.csv": {
+      "sha256": "0fc7e9f655123ba90b672d2074d9b45d1bfd03d45ebb8155fc60ed98d3be34ad",
+      "octets": 3716,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=WASTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/WISTHPI.csv": {
+      "sha256": "83fd4a42a1dcb9fe521cdedd7ec6e8040f0cf638e7f283bfadf098c7a9a21d9e",
+      "octets": 3709,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=WISTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/WVSTHPI.csv": {
+      "sha256": "598e8068dd728556dc1eece306b28cb75e5635fb84160ff6773936b5b0ee9a06",
+      "octets": 3684,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=WVSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
+    "brut/fred/etats/WYSTHPI.csv": {
+      "sha256": "a1202967362ee32a2e87cee5fb9fe2041b22d38188e2a86213e3786b309eddfe",
+      "octets": 3678,
+      "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=WYSTHPI",
+      "obtenu_le": "2026-11-14"
+    },
     "brut/freddie/sample_2000.zip": {
       "sha256": "511c105da3caf34a19093a207b1e4ffc3b7b0f045db3d4c52a6e584c5e78f736",
       "octets": 20320360,
@@ -187,5 +493,5 @@
       "obtenu_le": "2026-11-13"
     }
   },
-  "manifeste_sha256": "4a212c30a1e17179c492e575387329dc625bcf40b2111ad5eadaaf45b2a457e6"
+  "manifeste_sha256": "38ca8260eb2fb38077d26b85d1774fda4a669652e91bde9482789730d91432e4"
 }

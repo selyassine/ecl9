@@ -2,7 +2,8 @@
 
 Tire 25 prêts en stade 1 et 25 en stade 2 parmi les provisions de l'étape 6,
 reconstitue leurs entrées (CRD, taux, durée restante, LGD, PD à 12 mois de
-LightGBM, hasards de survie non ancrés), fait recalculer la provision par le
+LightGBM, hasards de survie non ancrés, hasards de remboursement anticipé),
+fait recalculer la provision par le
 script R indépendant ``tests/r/double_calcul.R`` et compare prêt par prêt.
 
 Les entrées restent dans ``sorties/`` (données Freddie Mac, non versionnées) ;
@@ -47,6 +48,10 @@ def main() -> pd.DataFrame:
     figee = pd.DataFrame([m.loc[ARRETE]] * n_mois, columns=m.columns)
     figee.index = pd.period_range(ARRETE + 1, periods=n_mois, freq="M")
     h = moteur.projeter_hasards(s[s["retenu"]], p, ARRETE, figee, n_mois)
+    # Remboursement anticipé concurrent (D-040).
+    with open(e6.SORTIES / "remboursement" / "modele.pkl", "rb") as f:
+        r = pickle.load(f)
+    hp = moteur.projeter_hasards(r[r["retenu"]], p, ARRETE, figee, n_mois)
 
     entrees = pd.DataFrame(
         {
@@ -60,7 +65,12 @@ def main() -> pd.DataFrame:
         }
     )
     entrees = pd.concat(
-        [entrees, pd.DataFrame(h, columns=[f"h_{k + 1}" for k in range(n_mois)])], axis=1
+        [
+            entrees,
+            pd.DataFrame(h, columns=[f"h_{k + 1}" for k in range(n_mois)]),
+            pd.DataFrame(hp, columns=[f"p_{k + 1}" for k in range(n_mois)]),
+        ],
+        axis=1,
     )
 
     dossier = e6.SORTIES / "double_calcul_r"
@@ -77,6 +87,7 @@ def main() -> pd.DataFrame:
         entrees["lgd"].to_numpy(),
         entrees["pd12"].to_numpy(),
         h,
+        hasards_rembt=hp,
     )
     r = pd.read_csv(chemin_s)["ecl"].to_numpy()
     c = pd.DataFrame(
@@ -86,7 +97,7 @@ def main() -> pd.DataFrame:
             "ecl_python": python,
             "ecl_r": r,
             "ecart_relatif": np.abs(python - r) / np.maximum(np.abs(r), 1e-12),
-            "ecl_etape_6": tirage["ecl_lightgbm"].to_numpy(),
+            "ecl_sans_remboursement": tirage["ecl_lightgbm"].to_numpy(),
         }
     )
     return c
@@ -97,8 +108,7 @@ if __name__ == "__main__":
     c.to_csv(e6.RESULTATS / f"double_calcul_r_{ARRETE}.csv", index=False, float_format="%.10g")
     print(c.round(6).to_string(index=False))
     print(f"Écart relatif maximal Python / R : {c['ecart_relatif'].max():.2e}")
-    print(
-        f"Écart maximal avec l'étape 6 : {(c['ecl_python'] / c['ecl_etape_6'] - 1).abs().max():.2e}"
-    )
+    effet = c["ecl_python"].sum() / c["ecl_sans_remboursement"].sum() - 1
+    print(f"Effet du remboursement anticipé sur ces 50 prêts : {effet:+.1%}")
     if c["ecart_relatif"].max() >= 1e-8:
         sys.exit("Double calcul en échec")

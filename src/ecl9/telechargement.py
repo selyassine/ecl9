@@ -144,10 +144,13 @@ def obtenir_freddie(manifeste: dict, verrou: dict, dossier: Path = DOSSIER_DONNE
         print(f"Freddie Mac {annee} : prêt.")
 
 
-def obtenir_fred(manifeste: dict, verrou: dict, dossier: Path = DOSSIER_DONNEES) -> None:
+def obtenir_fred(
+    manifeste: dict, verrou: dict, dossier: Path = DOSSIER_DONNEES, section: str = "fred"
+) -> None:
     """Les séries FRED sont révisées : un fichier déjà présent n'est pas retéléchargé."""
-    conf = manifeste["fred"]
+    conf = manifeste[section]
     session = requests.Session()
+    (dossier / conf["dossier"]).mkdir(parents=True, exist_ok=True)
     for serie in conf["series"]:
         cible = dossier / conf["dossier"] / f"{serie}.csv"
         url = conf["url_modele"].format(serie=serie)
@@ -179,6 +182,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if not args.freddie:
             obtenir_fred(manifeste, verrou)
+            if "fred_etats" in manifeste:
+                obtenir_fred(manifeste, verrou, section="fred_etats")
         if not args.fred:
             obtenir_freddie(manifeste, verrou)
     except (ErreurTelechargement, requests.RequestException) as e:

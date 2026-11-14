@@ -118,3 +118,14 @@ def test_contrainte_de_signe_retire_le_coefficient_contraire():
     assert np.isfinite(survie.hasards(m, df)).all()
     # Avec le bon signe attendu, rien n'est retiré.
     assert survie.ajuster_avec_signes(e, {"chomage": 1})[1] == ()
+
+
+def test_marquer_remboursement():
+    p = pd.DataFrame(
+        {
+            "zero_balance_code": ["01", "1", "01", "03", None],
+            "remaining_months_to_maturity": [120, 50, 1, 80, 200],
+            "defaut": [0, 0, 0, 1, 0],
+        }
+    )
+    assert survie.marquer_remboursement(p).tolist() == [1, 1, 0, 0, 0]

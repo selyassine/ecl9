@@ -3,9 +3,11 @@
 Lit le détail par prêt de l'étape 7 (``sorties/trimestriel/prets/``, hors Git)
 et les provisions par scénario (``rapport/resultats/trimestriel_scenarios.csv``).
 
-Usage : python pipeline/etape_09_sensibilites.py   (après l'étape 7, deux modes)
+Usage : python pipeline/etape_09_sensibilites.py [--sans-remboursement]
+        (après l'étape 7, deux trajectoires)
 """
 
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -14,7 +16,6 @@ import pandas as pd
 from ecl9.definitions import SEUIL_RETARD_STADE2
 
 RACINE = Path(__file__).resolve().parents[1]
-DETAIL = RACINE / "sorties" / "trimestriel" / "prets"
 RESULTATS = RACINE / "rapport" / "resultats"
 GRAINE = 20261112
 TIRAGES = 1_000
@@ -80,8 +81,8 @@ def grille_seuils(d: pd.DataFrame) -> list[dict]:
     return lignes
 
 
-def grille_ponderations() -> pd.DataFrame:
-    t = pd.read_csv(RESULTATS / "trimestriel_scenarios.csv")
+def grille_ponderations(suffixe: str) -> pd.DataFrame:
+    t = pd.read_csv(RESULTATS / f"trimestriel_scenarios{suffixe}.csv")
     g = t.groupby(["arrete", "modele"]).sum(numeric_only=True)
     lignes = []
     for (arrete, modele), x in g.iterrows():
@@ -105,10 +106,11 @@ def grille_ponderations() -> pd.DataFrame:
     return pd.DataFrame(lignes)
 
 
-def main() -> None:
+def main(suffixe: str = "") -> None:
     rng = np.random.default_rng(GRAINE)
     boot, seuils = [], []
-    for fichier in sorted(DETAIL.glob("*.parquet")):
+    detail = RACINE / "sorties" / "trimestriel" / f"prets{suffixe}"
+    for fichier in sorted(detail.glob("*.parquet")):
         arrete = fichier.stem
         d = pd.read_parquet(fichier)
         b = bootstrap(d["ecl_logistique"].to_numpy(), d["ecl_lightgbm"].to_numpy(), rng)
@@ -118,14 +120,15 @@ def main() -> None:
             f"{arrete} : écart {b['ecart_relatif']:+.1%} "
             f"[{b['ecart_relatif_bas']:+.1%} ; {b['ecart_relatif_haut']:+.1%}]"
         )
-    pd.DataFrame(boot).rename_axis("arrete").to_csv(RESULTATS / "bootstrap_ecart.csv")
+    pd.DataFrame(boot).rename_axis("arrete").to_csv(RESULTATS / f"bootstrap_ecart{suffixe}.csv")
     s = pd.DataFrame(seuils)
-    s.to_csv(RESULTATS / "grille_seuils_stade2.csv", index=False)
+    s.to_csv(RESULTATS / f"grille_seuils_stade2{suffixe}.csv", index=False)
     print(s.pivot_table(index="arrete", columns=["modele", "seuil"]).round(4).iloc[::4])
-    p = grille_ponderations()
-    p.to_csv(RESULTATS / "grille_ponderations.csv", index=False)
+    p = grille_ponderations(suffixe)
+    p.to_csv(RESULTATS / f"grille_ponderations{suffixe}.csv", index=False)
     print(p[p["arrete"] == "2007-12"].round(4).to_string(index=False))
 
 
 if __name__ == "__main__":
-    main()
+    # --sans-remboursement : version 1, sans remboursement anticipé (D-040).
+    main("_sans_remboursement" if "--sans-remboursement" in sys.argv[1:] else "")

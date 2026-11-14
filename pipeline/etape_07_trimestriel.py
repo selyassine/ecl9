@@ -35,6 +35,14 @@ INTER = DOSSIER_DONNEES / "intermediaire"
 MODELES = ("logistique", "lightgbm")
 ARRETES = pd.period_range("2006-03", "2010-12", freq="Q-DEC").asfreq("M", "end")
 TAILLE_LOT = 20_000
+# Remboursement anticipé en risque concurrent (D-040) ; désactivé par
+# --sans-remboursement pour reproduire la version 1.
+REMBOURSEMENT = True
+PRIX_ETATS: pd.DataFrame | None = None  # indices FHFA par État (D-041), mode scénarios
+
+
+def suffixe_version() -> str:
+    return "" if REMBOURSEMENT else "_sans_remboursement"
 
 
 def charger_modeles():
@@ -44,7 +52,18 @@ def charger_modeles():
         s = pickle.load(f)
     with open(SORTIES / "lgd" / "modele.pkl", "rb") as f:
         lgd = pickle.load(f)
-    return pd12, s[s["retenu"]], lgd
+    rembt = None
+    if REMBOURSEMENT:
+        with open(SORTIES / "remboursement" / "modele.pkl", "rb") as f:
+            r = pickle.load(f)
+        rembt = r[r["retenu"]]
+    return pd12, s[s["retenu"]], lgd, rembt
+
+
+def hasards_rembt(modele, prets, arrete, traj, n_mois):
+    if modele is None:
+        return None
+    return moteur.projeter_hasards(modele, prets, arrete, traj, n_mois)
 
 
 def trajectoire_figee(m: pd.DataFrame, arrete: pd.Period, n_mois: int) -> pd.DataFrame:
@@ -53,14 +72,21 @@ def trajectoire_figee(m: pd.DataFrame, arrete: pd.Period, n_mois: int) -> pd.Dat
     return t
 
 
-def pd_cumulee_ancree(h: np.ndarray, pd12: np.ndarray, n: np.ndarray) -> np.ndarray:
-    """PD cumulée sur ``n`` mois après ancrage des 12 premiers mois sur ``pd12``."""
-    a = moteur.ancrer_matrice(h, pd12, np.minimum(HORIZON_STADE1_MOIS, n))
+def pd_cumulee_ancree(
+    h: np.ndarray, pd12: np.ndarray, n: np.ndarray, hp: np.ndarray | None = None
+) -> np.ndarray:
+    """PD cumulée sur ``n`` mois après ancrage des 12 premiers mois sur ``pd12``.
+
+    Avec ``hp``, remboursement anticipé concurrent (D-040).
+    """
+    a = moteur.ancrer_matrice(h, pd12, np.minimum(HORIZON_STADE1_MOIS, n), hp=hp)
     dedans = np.arange(h.shape[1])[None, :] < n[:, None]
-    return 1 - np.prod(np.where(dedans, 1 - a, 1.0), axis=1)
+    if hp is None:
+        return 1 - np.prod(np.where(dedans, 1 - a, 1.0), axis=1)
+    return moteur.incidence(np.where(dedans, a, 0.0), np.where(dedans, hp, 0.0))[:, -1]
 
 
-def pd_vie_octroi(octroi: pd.DataFrame, m: pd.DataFrame, modeles_pd12, modele_survie):
+def pd_vie_octroi(octroi: pd.DataFrame, m: pd.DataFrame, modeles_pd12, modele_survie, rembt):
     """PD à maturité à l'octroi, pour chaque prêt de test et chaque modèle (D-030)."""
     o = octroi[octroi["annee_octroi"].isin(ANNEES_TEST)].reset_index(drop=True)
     o["period"] = pd.PeriodIndex(o["first_payment_date"], freq="M") - 1
@@ -85,13 +111,13 @@ def pd_vie_octroi(octroi: pd.DataFrame, m: pd.DataFrame, modeles_pd12, modele_su
         n_max = int(groupe["orig_loan_term"].max())
         for debut in range(0, len(groupe), TAILLE_LOT):
             lot = groupe.iloc[debut : debut + TAILLE_LOT]
-            h = moteur.projeter_hasards(
-                modele_survie, lot, mois, trajectoire_figee(m, mois, n_max), n_max
-            )
+            traj = trajectoire_figee(m, mois, n_max)
+            h = moteur.projeter_hasards(modele_survie, lot, mois, traj, n_max)
+            hp = hasards_rembt(rembt, lot, mois, traj, n_max)
             n = lot["orig_loan_term"].to_numpy(dtype=int)
             for nom in MODELES:
                 sortie.loc[lot.index, f"pd_vie_octroi_{nom}"] = pd_cumulee_ancree(
-                    h, pd12[nom][lot.index], n
+                    h, pd12[nom][lot.index], n, hp
                 )
     return sortie
 
@@ -126,7 +152,7 @@ def pertes_constatees(prets: pd.DataFrame, defauts: pd.DataFrame, arrete, horizo
 
 def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=None):
     """Lignes par modèle et stade ; avec ``hpi``, provision pondérée des scénarios (D-034)."""
-    _, modele_survie, modele_lgd = modeles
+    _, modele_survie, modele_lgd, modele_rembt = modeles
     p = actifs(arrete, octroi, m)
     p = p.merge(
         pred[pred["period"] == arrete].drop(columns="period"),
@@ -162,24 +188,37 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
         cltv0 = sc.cltv_arrete(
             p, hpi.reindex(mois_octroi - 1).to_numpy(dtype=float), float(hpi.loc[arrete])
         )
+        cltv0_etats = None
+        if PRIX_ETATS is not None:
+            cltv0_etats = sc.cltv_arrete_etats(p, mois_octroi - 1, arrete, PRIX_ETATS, cltv0)
     resultats = {nom: {"stade": [], "ecl": [], "ecl_maturite": [], "ratio": []} for nom in MODELES}
     for debut in range(0, len(p), TAILLE_LOT):
         sl = slice(debut, debut + TAILLE_LOT)
         h = moteur.projeter_hasards(modele_survie, p.iloc[sl], arrete, traj, n_max)
+        hp = hasards_rembt(modele_rembt, p.iloc[sl], arrete, traj, n_max)
         if hpi is not None:
             # Écarts de logit au scénario central, appliqués après l'ancrage (D-036).
-            ecarts = {}
+            # Le remboursement suit directement la trajectoire du scénario (D-040).
+            ecarts, hp_scen = {}, {}
             for s, t in trajs.items():
+                hp_s = (
+                    hp
+                    if s == "central"
+                    else hasards_rembt(modele_rembt, p.iloc[sl], arrete, t, n_max)
+                )
+                hp_scen[s] = hp_scen[f"{s}_surcouche"] = hp_scen[f"{s}_surcouche_etats"] = hp_s
                 ecart = 0.0
                 if s != "central":
                     hs = moteur.projeter_hasards(modele_survie, p.iloc[sl], arrete, t, n_max)
                     ecart = moteur.logit(hs) - moteur.logit(h)
-                surcouche = sc.surcouche(cltv0[sl], float(m.loc[arrete, "chomage_var12"]), t)
+                u0 = float(m.loc[arrete, "chomage_var12"])
                 ecarts[s] = ecart
-                ecarts[f"{s}_surcouche"] = ecart + surcouche
+                ecarts[f"{s}_surcouche"] = ecart + sc.surcouche(cltv0[sl], u0, t)
+                if cltv0_etats is not None:
+                    ecarts[f"{s}_surcouche_etats"] = ecart + sc.surcouche(cltv0_etats[sl], u0, t)
         for nom in MODELES:
             pd12 = p[f"pd_{nom}"].to_numpy()[sl]
-            pd_vie = pd_cumulee_ancree(h, pd12, restants[sl])
+            pd_vie = pd_cumulee_ancree(h, pd12, restants[sl], hp)
             st = staging.stade(
                 en_defaut=np.zeros(len(pd12), dtype=bool),
                 retard_mensualites=p["retard"].to_numpy()[sl],
@@ -200,13 +239,15 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
                         p["duree_initiale"].to_numpy()[sl],
                     )
                 )
-            resultats[nom]["ecl"].append(moteur.provisions(st, *args))
+            resultats[nom]["ecl"].append(moteur.provisions(st, *args, hasards_rembt=hp))
             if hpi is None:
-                resultats[nom]["ecl_maturite"].append(moteur.provisions(np.full(len(st), 2), *args))
+                resultats[nom]["ecl_maturite"].append(
+                    moteur.provisions(np.full(len(st), 2), *args, hasards_rembt=hp)
+                )
             else:
                 for cle, ecart in ecarts.items():
                     resultats[nom].setdefault(f"ecl_{cle}", []).append(
-                        moteur.provisions(st, *args, ecart_logit=ecart)
+                        moteur.provisions(st, *args, ecart_logit=ecart, hasards_rembt=hp_scen[cle])
                     )
 
     # Stade 3 : défauts survenus avant l'arrêté et pas encore sortis.
@@ -243,7 +284,7 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
                 **{f"ratio_{nom}": np.nan for nom in MODELES},
             }
         )
-        dossier = SORTIES / "trimestriel" / "prets"
+        dossier = SORTIES / "trimestriel" / f"prets{suffixe_version()}"
         dossier.mkdir(parents=True, exist_ok=True)
         pd.concat([prets, stade3], ignore_index=True).to_parquet(
             dossier / f"{arrete}.parquet", index=False
@@ -259,7 +300,9 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
             if c.startswith("ecl_") and c != "ecl_maturite"
         }
         if par_scenario:
-            for suffixe in ("", "_surcouche"):
+            for suffixe in ("", "_surcouche", "_surcouche_etats"):
+                if f"ecl_central{suffixe}" not in par_scenario:
+                    continue
                 par_scenario[f"ecl_ponderee{suffixe}"] = sum(
                     w * par_scenario[f"ecl_{s}{suffixe}"] for s, w in PONDERATIONS_SCENARIOS.items()
                 )
@@ -318,11 +361,14 @@ def calculer_arrete(arrete, octroi, m, pred, pd_octroi, defauts, modeles, hpi=No
 
 def main(nom_trajectoire: str) -> None:
     t0 = time.time()
+    global PRIX_ETATS
     hpi = (
         macro.indice_prix(DOSSIER_DONNEES / "brut" / "fred")
         if nom_trajectoire == "scenarios"
         else None
     )
+    if hpi is not None:
+        PRIX_ETATS = macro.indices_prix_etats(DOSSIER_DONNEES / "brut" / "fred" / "etats")
     octroi = pd.read_parquet(INTER / "octroi.parquet")
     m = macro.charger(DOSSIER_DONNEES / "brut" / "fred")
     modeles = charger_modeles()
@@ -336,17 +382,19 @@ def main(nom_trajectoire: str) -> None:
 
     sortie = SORTIES / "trimestriel"
     sortie.mkdir(parents=True, exist_ok=True)
-    cache = sortie / "pd_vie_octroi.parquet"
+    cache = sortie / f"pd_vie_octroi{suffixe_version()}.parquet"
     if cache.exists():
         pd_octroi = pd.read_parquet(cache)
     else:
-        pd_octroi = pd_vie_octroi(octroi, m, modeles[0], modeles[1])
+        pd_octroi = pd_vie_octroi(octroi, m, modeles[0], modeles[1], modeles[3])
         pd_octroi.to_parquet(cache, index=False)
     print(f"PD à maturité à l'octroi : {len(pd_octroi):,} prêts ({time.time() - t0:.0f} s)")
 
     lignes, generations = [], []
     for arrete in ARRETES:
-        fichier = sortie / nom_trajectoire / f"{arrete}.pkl"  # reprise après interruption
+        fichier = (
+            sortie / f"{nom_trajectoire}{suffixe_version()}" / f"{arrete}.pkl"
+        )  # reprise après interruption
         if fichier.exists():
             lig, g = pd.read_pickle(fichier)
         else:
@@ -360,7 +408,7 @@ def main(nom_trajectoire: str) -> None:
         resume = t.groupby("modele")[[*cols, "pertes_constatees"]].sum()
         print(f"{arrete} ({time.time() - t0:.0f} s)\n{resume.round(0).to_string()}")
 
-    suffixe = f"_{nom_trajectoire}"
+    suffixe = f"_{nom_trajectoire}{suffixe_version()}"
     pd.DataFrame(lignes).to_csv(RESULTATS / f"trimestriel{suffixe}.csv", index=False)
     if generations:
         pd.DataFrame(generations).to_csv(RESULTATS / f"generations{suffixe}.csv", index=False)
@@ -370,4 +418,7 @@ def main(nom_trajectoire: str) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--trajectoire", default="figee", choices=["figee", "scenarios"])
-    main(parser.parse_args().trajectoire)
+    parser.add_argument("--sans-remboursement", action="store_true")
+    arguments = parser.parse_args()
+    REMBOURSEMENT = not arguments.sans_remboursement
+    main(arguments.trajectoire)

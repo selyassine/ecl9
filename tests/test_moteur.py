@@ -107,3 +107,36 @@ def test_ecart_de_scenario_applique_apres_ancrage():
     assert np.allclose(moteur.provisions(*args, ecart_logit=0.0), base)
     choc = moteur.provisions(*args, ecart_logit=np.log(2.0))
     assert (choc > base).all()
+
+
+def test_incidence_a_la_main():
+    """Deux mois, défaut 1 %, remboursement 2 % : 0,01 + 0,97 × 0,01."""
+    inc = moteur.incidence(np.array([[0.01, 0.01]]), np.array([[0.02, 0.02]]))
+    assert inc[0, 1] == pytest.approx(0.01 + 0.97 * 0.01)
+
+
+def test_ancrage_en_presence_du_remboursement():
+    rng = np.random.default_rng(5)
+    h = rng.uniform(0.001, 0.01, (3, 24))
+    hp = rng.uniform(0.0, 0.03, (3, 24))
+    pd12 = np.array([0.0, 0.05, 0.2])
+    a = moteur.ancrer_matrice(h, pd12, np.full(3, 12), hp=hp)
+    assert np.allclose(moteur.incidence(a[:, :12], hp[:, :12])[:, -1], pd12, atol=1e-10)
+    assert np.allclose(a[:, 12:], h[:, 12:])
+
+
+def test_remboursement_nul_ne_change_rien():
+    rng = np.random.default_rng(4)
+    n = 5
+    args = (
+        np.array([1, 2, 2, 1, 3]),
+        np.full(n, 150_000.0),
+        np.full(n, 0.05),
+        np.array([40, 40, 25, 10, 40]),
+        np.full(n, 0.25),
+        np.full(n, 0.03),
+        rng.uniform(0.001, 0.02, (n, 40)),
+    )
+    base = moteur.provisions(*args)
+    assert np.allclose(moteur.provisions(*args, hasards_rembt=np.zeros((n, 40))), base)
+    assert (moteur.provisions(*args, hasards_rembt=np.full((n, 40), 0.02))[1:3] < base[1:3]).all()

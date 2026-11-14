@@ -117,16 +117,21 @@ def modele(exclues: tuple[str, ...] = ()) -> Pipeline:
     return Pipeline([("preparation", preparation), ("logit", LogisticRegression(max_iter=2000))])
 
 
-def ajuster(echantillon: pd.DataFrame, exclues: tuple[str, ...] = ()) -> Pipeline:
+def ajuster(
+    echantillon: pd.DataFrame, exclues: tuple[str, ...] = (), cible: str = "defaut"
+) -> Pipeline:
     poids = echantillon["poids"] if "poids" in echantillon else None
     return modele(exclues).fit(
-        _x(echantillon), echantillon["defaut"].to_numpy(), logit__sample_weight=poids
+        _x(echantillon), echantillon[cible].to_numpy(), logit__sample_weight=poids
     )
 
 
 # Signe attendu de l'effet de chaque variable macro sur le hasard de défaut.
 # Le taux à 10 ans n'a pas de signe attendu univoque : il n'est pas contraint.
 SIGNES_ATTENDUS = {"chomage": 1, "chomage_var12": 1, "hpi_var12": -1, "ecart_taux": 1}
+# Remboursement anticipé (D-040) : refinancement quand le taux du prêt dépasse
+# celui du marché, plus facile quand les prix montent et l'emploi tient.
+SIGNES_REMBOURSEMENT = {"chomage": -1, "chomage_var12": -1, "hpi_var12": 1, "ecart_taux": 1}
 
 
 def coefficients_macro(m: Pipeline) -> pd.Series:
@@ -137,7 +142,9 @@ def coefficients_macro(m: Pipeline) -> pd.Series:
 
 
 def ajuster_avec_signes(
-    echantillon: pd.DataFrame, signes: dict[str, int] = SIGNES_ATTENDUS
+    echantillon: pd.DataFrame,
+    signes: dict[str, int] = SIGNES_ATTENDUS,
+    cible: str = "defaut",
 ) -> tuple[Pipeline, tuple[str, ...]]:
     """Réestime en retirant une à une les variables macro de signe contraire.
 
@@ -148,7 +155,7 @@ def ajuster_avec_signes(
     """
     exclues: tuple[str, ...] = ()
     while True:
-        m = ajuster(echantillon, exclues)
+        m = ajuster(echantillon, exclues, cible)
         coef = coefficients_macro(m)
         fautifs = {v: coef[v] * s for v, s in signes.items() if v in coef and coef[v] * s < 0}
         if not fautifs:
@@ -221,3 +228,10 @@ def projeter(
     if "log_orig_upb" not in lignes:
         lignes["log_orig_upb"] = np.log(lignes["orig_upb"])
     return hasards(m, lignes)
+
+
+def marquer_remboursement(panneau: pd.DataFrame) -> pd.Series:
+    """1 le mois d'un remboursement anticipé intégral (D-040), 0 sinon."""
+    code = panneau["zero_balance_code"].astype("string").str.strip().str.zfill(2)
+    restant = panneau["remaining_months_to_maturity"].fillna(np.inf)
+    return (code.eq("01").fillna(False) & panneau["defaut"].eq(0) & (restant > 1)).astype(int)

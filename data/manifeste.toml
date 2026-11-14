@@ -25,3 +25,10 @@ url_modele = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={serie}"
 series = ["UNRATE", "CSUSHPISA", "MORTGAGE30US", "DGS10"]
 dossier = "brut/fred"
 licence = "Domaine public pour ces séries (vérifier les mentions de chaque série)."
+
+[fred_etats]
+description = "Indices FHFA des prix immobiliers par État, toutes transactions, trimestriels (D-041)"
+url_modele = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={serie}"
+series = ["AKSTHPI", "ALSTHPI", "ARSTHPI", "AZSTHPI", "CASTHPI", "COSTHPI", "CTSTHPI", "DCSTHPI", "DESTHPI", "FLSTHPI", "GASTHPI", "HISTHPI", "IASTHPI", "IDSTHPI", "ILSTHPI", "INSTHPI", "KSSTHPI", "KYSTHPI", "LASTHPI", "MASTHPI", "MDSTHPI", "MESTHPI", "MISTHPI", "MNSTHPI", "MOSTHPI", "MSSTHPI", "MTSTHPI", "NCSTHPI", "NDSTHPI", "NESTHPI", "NHSTHPI", "NJSTHPI", "NMSTHPI", "NVSTHPI", "NYSTHPI", "OHSTHPI", "OKSTHPI", "ORSTHPI", "PASTHPI", "RISTHPI", "SCSTHPI", "SDSTHPI", "TNSTHPI", "TXSTHPI", "UTSTHPI", "VASTHPI", "VTSTHPI", "WASTHPI", "WISTHPI", "WVSTHPI", "WYSTHPI"]
+dossier = "brut/fred/etats"
+licence = "Domaine public (FHFA, diffusé par FRED)."

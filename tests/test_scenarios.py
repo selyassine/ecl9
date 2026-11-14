@@ -91,3 +91,23 @@ def test_decaler():
     assert np.allclose(sc.decaler(h, 0.0), h)
     odds = lambda p: p / (1 - p)  # noqa: E731
     assert odds(sc.decaler(h, np.log(2.0)))[0, 1] == pytest.approx(2 * odds(0.02))
+
+
+def test_cltv_par_etat_et_repli():
+    mois = pd.period_range("2005-01", "2007-12", freq="M")
+    indices = pd.DataFrame({"CA": np.linspace(100, 80, len(mois)), "TX": 100.0}, index=mois)
+    prets = pd.DataFrame(
+        {
+            "property_state": ["CA", "TX", "PR"],
+            "orig_cltv": [80.0, 80.0, 80.0],
+            "orig_ltv": [80.0, 80.0, 80.0],
+            "current_upb": [100.0, 100.0, 100.0],
+            "orig_upb": [100.0, 100.0, 100.0],
+        }
+    )
+    c = sc.cltv_arrete_etats(
+        prets, pd.PeriodIndex(["2005-01"] * 3, freq="M"), ARRETE, indices, np.full(3, -1.0)
+    )
+    assert c[0] == pytest.approx(80 * 100 / 80)
+    assert c[1] == pytest.approx(80.0)
+    assert c[2] == -1.0

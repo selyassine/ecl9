@@ -114,6 +114,35 @@ def cltv_arrete(prets: pd.DataFrame, hpi_octroi: np.ndarray, hpi_arrete: float) 
     return cltv * part * hpi_octroi / hpi_arrete
 
 
+def cltv_arrete_etats(
+    prets: pd.DataFrame,
+    mois_octroi: pd.PeriodIndex,
+    arrete: pd.Period,
+    indices: pd.DataFrame,
+    repli: np.ndarray,
+) -> np.ndarray:
+    """CLTV réévaluée avec l'indice FHFA de l'État du bien (D-041).
+
+    ``repli`` (CLTV réévaluée à l'indice national) sert quand l'État n'a pas
+    d'indice (territoires) ou que l'indice manque à l'une des deux dates.
+    """
+    etat = prets["property_state"].astype("string").to_numpy()
+    colonnes = {e: i for i, e in enumerate(indices.columns)}
+    j = np.array([colonnes.get(e, -1) for e in etat])
+    valeurs = indices.to_numpy()
+    lignes_octroi = indices.index.get_indexer(mois_octroi)
+    ligne_arrete = indices.index.get_loc(arrete)
+    ok = (j >= 0) & (lignes_octroi >= 0)
+    a_octroi = np.full(len(etat), np.nan)
+    a_octroi[ok] = valeurs[lignes_octroi[ok], j[ok]]
+    a_arrete = np.full(len(etat), np.nan)
+    a_arrete[j >= 0] = valeurs[ligne_arrete, j[j >= 0]]
+    cltv = prets["orig_cltv"].fillna(prets["orig_ltv"]).to_numpy(dtype=float)
+    part = (prets["current_upb"] / prets["orig_upb"]).to_numpy(dtype=float)
+    etats = cltv * part * a_octroi / a_arrete
+    return np.where(np.isfinite(etats), etats, repli)
+
+
 def surcouche(cltv0: np.ndarray, chomage_var12_0: float, traj: pd.DataFrame) -> np.ndarray:
     """Écart de logit du hasard, prêts × mois, par rapport à la situation à l'arrêté.
 

@@ -19,7 +19,7 @@ Provision avec la macro figée à l'arrêté, stades 1 à 3 compris. Les pertes
 constatées portent sur le même périmètre et le même horizon (D-032) : 12 mois
 en stade 1, jusqu'à la fin des données en stade 2, résolution du défaut en
 cours en stade 3. Détail par stade :
-[`trimestriel_figee.csv`](trimestriel_figee.csv).
+[`trimestriel_figee.csv`](trimestriel_figee_sans_remboursement.csv).
 
 1. **La provision ne couvre qu'une petite part des pertes.** Au 31/12/2007,
    juste avant la crise, elle représente 6 % (logistique) à 9 % (LightGBM) des
@@ -46,7 +46,7 @@ La raison : la PD à maturité est dominée par les hasards de survie au-delà
 de 12 mois, et le modèle de survie n'a appris aucune sensibilité au chômage
 ni aux prix (D-026). Seule la PD à 12 mois, ancrée sur les 12 premiers mois,
 bouge avec l'état du prêt. La grille de seuils (1,5 à 4) est dans
-[`grille_seuils_stade2.csv`](grille_seuils_stade2.csv) : au seuil 1,5, la baisse
+[`grille_seuils_stade2.csv`](grille_seuils_stade2_sans_remboursement.csv) : au seuil 1,5, la baisse
 des taux de 2009-2010 fait basculer jusqu'à 82 % de l'encours en stade 2
 (voir la note, section 6).
 
@@ -64,7 +64,7 @@ des taux de 2009-2010 fait basculer jusqu'à 82 % de l'encours en stade 2
 surcouche, ajoute 27 à 28 % au 31/12/2007. Pondérés 50/30/20, les scénarios
 ne changent la provision que de quelques pourcents : ils ne comblent pas un
 écart de 1 à 10 avec les pertes. Détail par scénario :
-[`trimestriel_scenarios.csv`](trimestriel_scenarios.csv).
+[`trimestriel_scenarios.csv`](trimestriel_scenarios_sans_remboursement.csv).
 
 Un premier calcul ancrait chaque scénario sur la PD à 12 mois, ce qui
 annulait leur effet en stade 1. Il est conservé dans
@@ -80,7 +80,7 @@ par D-036.
 | 2008 | 8,6 | 39,2 | 40,7 | 95,8 |
 
 Tous les prêts traités à maturité, macro figée à la fin de l'année d'octroi
-([`generations_figee.csv`](generations_figee.csv)). La perte attendue couvre
+([`generations_figee.csv`](generations_figee_sans_remboursement.csv)). La perte attendue couvre
 15 à 16 % des pertes constatées pour 2006 et 2007, 41 à 42 % pour 2008, octroyé
 après le début de la baisse des prix. Sur la durée de vie, les deux modèles
 sont presque identiques (+ 2 à + 4 %), puisque seule la première année
@@ -90,6 +90,6 @@ diffère.
 
 50 prêts réels du portefeuille au 31/12/2007 (25 en stade 1, 25 en stade 2)
 recalculés par `tests/r/double_calcul.R` : écart relatif maximal de 1e-12
-avec le moteur Python ([`double_calcul_r_2007-12.csv`](double_calcul_r_2007-12.csv)).
+avec le moteur Python ([`double_calcul_r_2007-12.csv`](double_calcul_r_2007-12_sans_remboursement.csv)).
 Le contrôle sur 50 prêts simulés, stade 3 compris, tourne en intégration
 continue.

@@ -13,7 +13,9 @@ from ecl9 import moteur
 SCRIPT = Path(__file__).parent / "r" / "double_calcul.R"
 
 
-def entrees_simulees(n: int = 50, mois: int = 360, graine: int = 20261112) -> pd.DataFrame:
+def entrees_simulees(
+    n: int = 50, mois: int = 360, graine: int = 20261112, remboursement: bool = False
+) -> pd.DataFrame:
     rng = np.random.default_rng(graine)
     restants = rng.integers(3, mois + 1, n)
     df = pd.DataFrame(
@@ -29,12 +31,17 @@ def entrees_simulees(n: int = 50, mois: int = 360, graine: int = 20261112) -> pd
     )
     df.loc[0, "pd12"] = 0.0
     h = rng.uniform(0.0002, 0.02, (n, mois))
-    return pd.concat([df, pd.DataFrame(h, columns=[f"h_{k + 1}" for k in range(mois)])], axis=1)
+    blocs = [df, pd.DataFrame(h, columns=[f"h_{k + 1}" for k in range(mois)])]
+    if remboursement:
+        p = rng.uniform(0.0, 0.03, (n, mois))
+        blocs.append(pd.DataFrame(p, columns=[f"p_{k + 1}" for k in range(mois)]))
+    return pd.concat(blocs, axis=1)
 
 
 def comparer(entrees: pd.DataFrame, dossier: Path) -> pd.DataFrame:
     """Provisions du moteur Python et du script R, prêt par prêt."""
-    h = entrees.filter(like="h_").to_numpy()
+    h = entrees.filter(regex="^h_").to_numpy()
+    p = entrees.filter(regex="^p_").to_numpy()
     python = moteur.provisions(
         entrees["stade"].to_numpy(),
         entrees["crd"].to_numpy(),
@@ -43,6 +50,7 @@ def comparer(entrees: pd.DataFrame, dossier: Path) -> pd.DataFrame:
         entrees["lgd"].to_numpy(),
         entrees["pd12"].to_numpy(),
         h,
+        hasards_rembt=p if p.size else None,
     )
     chemin_e, chemin_s = dossier / "entrees.csv", dossier / "sorties.csv"
     entrees.to_csv(chemin_e, index=False, float_format="%.17g")
@@ -57,3 +65,10 @@ def test_double_calcul_r_sur_50_prets_simules(tmp_path):
     ecart = np.abs(c["python"] - c["r"]) / np.maximum(np.abs(c["r"]), 1e-12)
     assert (ecart < 1e-8).all(), c[ecart >= 1e-8]
     assert c["python"].sum() > 0
+
+
+@pytest.mark.skipif(shutil.which("Rscript") is None, reason="R non installé")
+def test_double_calcul_r_avec_remboursement_anticipe(tmp_path):
+    c = comparer(entrees_simulees(remboursement=True), tmp_path)
+    ecart = np.abs(c["python"] - c["r"]) / np.maximum(np.abs(c["r"]), 1e-12)
+    assert (ecart < 1e-8).all(), c[ecart >= 1e-8]

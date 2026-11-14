@@ -592,3 +592,63 @@ l'estimation des modèles, qui demanderait de les réestimer à chaque tirage.
 `rapport/note.qmd`, rendue par Quarto et publiée sur GitHub Pages par
 l'intégration continue. Elle ne lit que les fichiers de `rapport/resultats/`,
 versionnés ; elle ne touche jamais aux données Freddie Mac.
+
+---
+
+## 2026-11-14 — Améliorations après la version 1 : protocole, avant calcul
+
+Les résultats de la version 1 (D-001 à D-039) restent publiés tels quels,
+renommés avec le suffixe `_sans_remboursement` ; ceux qui suivent les
+complètent sans les réécrire.
+
+### D-040 Remboursement anticipé en risque concurrent
+
+- **Événement** : solde nul de code `01` (remboursement intégral) alors qu'il
+  reste plus d'une mensualité, hors défaut. L'échéance naturelle n'est pas un
+  remboursement anticipé.
+- **Modèle** : hasard mensuel de remboursement en temps discret, même forme
+  et mêmes variables que le hasard de défaut (D-023), estimé sur les prêts
+  2000-2005 et les mois jusqu'au 31/12/2005, sur un tirage uniforme de 5 %
+  des lignes prêt-mois (graine `20261112`).
+- **Signes** : même procédure que D-026, avec les signes attendus pour un
+  remboursement : écart de taux +, variation des prix +, chômage et sa
+  variation -.
+- **Moteur** : survie `S(t) = Π (1 - h_défaut - h_remboursement)` ; PD
+  marginale `S(t-1) × h_défaut(t)`. L'EAD reste l'amortissement contractuel
+  d'un prêt encore en vie. L'ancrage (D-024) vise désormais la probabilité de
+  défaut dans les 12 mois **en présence** du remboursement, qui est ce que le
+  modèle de PD à 12 mois a appris. La PD à maturité des stades (D-030) est
+  calculée de la même façon, à l'octroi comme à l'arrêté. Le hasard de
+  remboursement n'est pas ancré ; dans les scénarios, il suit la trajectoire
+  du scénario.
+- **Validation** : remboursements attendus contre observés sur 2006-2010,
+  macro réalisée et figée, comme pour le défaut (D-025).
+
+### D-041 Prix immobiliers par État dans la surcouche
+
+La CLTV réévaluée de la surcouche (D-034) utilise, en plus de l'indice
+national, l'indice FHFA « toutes transactions » de l'État du bien (séries
+FRED `<État>STHPI`, trimestrielles, 50 États et Washington). La valeur d'un
+trimestre est tenue pour connue 4 mois après son premier mois (publication
+environ deux mois après la fin du trimestre). La trajectoire des scénarios
+reste nationale : seul le point de départ, la CLTV à l'arrêté, devient propre
+à l'État. Les territoires sans indice (Guam, Porto Rico, îles Vierges)
+gardent l'indice national. Les deux versions de la surcouche sont publiées ;
+la version par État ne remplace pas la version nationale.
+
+### D-042 Intervalle de confiance avec réestimation des modèles
+
+L'intervalle de D-037 tient les modèles fixes. Celui-ci ajoute l'incertitude
+d'estimation des deux modèles de PD à 12 mois :
+
+- 100 tirages (et non 1 000, pour un temps de calcul de quelques heures),
+  graine `20261112` ;
+- à chaque tirage, les **prêts** d'entraînement (2000-2005) sont tirés avec
+  remise, avec toutes leurs observations trimestrielles ; la logistique et
+  LightGBM sont réestimés, LightGBM avec les hyperparamètres retenus en
+  semaine 2 (pas de nouveau réglage) ;
+- le portefeuille de l'arrêté est tiré avec remise dans le même tirage ;
+- la survie, le remboursement anticipé, la LGD et les stades sont tenus à
+  ceux du résultat principal ; seule la PD à 12 mois change ;
+- arrêtés 31/12/2007 et 31/12/2008, macro figée, remboursement anticipé
+  inclus (D-040). Intervalle : centiles 2,5 et 97,5 de l'écart relatif.

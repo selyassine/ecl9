@@ -55,3 +55,20 @@ def indice_prix(dossier: Path) -> pd.Series:
     """Niveau de l'indice Case-Shiller connu à la fin de chaque mois (décalé de 2 mois)."""
     s = lire_serie(dossier / "CSUSHPISA.csv").sort_index().asfreq("M")
     return s.shift(DECALAGES_PUBLICATION["CSUSHPISA"]).rename("hpi")
+
+
+# Indices FHFA trimestriels par État (D-041) : la valeur d'un trimestre est
+# publiée environ deux mois après sa fin, soit 4 mois après son premier mois.
+DECALAGE_FHFA_MOIS = 4
+
+
+def indices_prix_etats(dossier: Path) -> pd.DataFrame:
+    """Niveau connu à la fin de chaque mois de l'indice FHFA de chaque État."""
+    series = {}
+    for chemin in sorted(dossier.glob("*STHPI.csv")):
+        s = lire_serie(chemin)
+        connu = s.copy()
+        connu.index = s.index + DECALAGE_FHFA_MOIS
+        mois = pd.period_range(connu.index.min(), connu.index.max() + 2, freq="M")
+        series[chemin.stem.removesuffix("STHPI")] = connu.reindex(mois).ffill()
+    return pd.DataFrame(series)
