@@ -57,22 +57,46 @@ def fr(x, d=1):
 
 
 def pct(x, d=0, signe=False):
-    s = f"{100 * x:+.{d}f}" if signe else f"{100 * x:.{d}f}"
+    v = round(100 * x, d) + 0.0  # évite « -0,0 »
+    s = f"{v:+.{d}f}" if signe else f"{v:.{d}f}"
     return s.replace(".", ",") + " %"
 
 
+V1 = "_sans_remboursement"
 fig_ = pd.read_csv(R / "trimestriel_figee.csv")
+fig1 = pd.read_csv(R / f"trimestriel_figee{V1}.csv")
 scen = pd.read_csv(R / "trimestriel_scenarios.csv")
 boot = pd.read_csv(R / "bootstrap_ecart.csv")
 seuils = pd.read_csv(R / "grille_seuils_stade2.csv")
 pond = pd.read_csv(R / "grille_ponderations.csv")
 gen = pd.read_csv(R / "generations_figee.csv")
+gen1 = pd.read_csv(R / f"generations_figee{V1}.csv")
 pd12 = pd.read_csv(R / "pd12_mesures.csv")
+rembt = pd.read_csv(R / "remboursement_mesures.csv")
+chemin_bm = R / "bootstrap_modeles.csv"
+bm = pd.read_csv(chemin_bm).set_index("arrete") if chemin_bm.exists() else None
 
 tot = fig_.groupby(["arrete", "modele"])[["encours", "ecl", "pertes_constatees"]].sum()
+tot1 = fig1.groupby(["arrete", "modele"])[["ecl"]].sum()
 dates = pd.PeriodIndex(sorted(fig_["arrete"].unique()), freq="M").to_timestamp(how="end")
-b07 = boot.set_index("arrete").loc["2007-12"]
+b = boot.set_index("arrete")
+b07 = b.loc["2007-12"]
 t07 = tot.xs("2007-12")
+ecart = b["ecart_relatif"]
+avant = ecart.loc["2006-12":"2008-12"]
+apres = ecart.loc["2009-12":"2010-12"]
+couv = {n: t07.loc[n, "ecl"] / t07.loc[n, "pertes_constatees"] for n in NOM}
+g = scen.groupby(["arrete", "modele"]).sum(numeric_only=True)
+eff = {c: g[f"ecl_ponderee{c}"] / g["ecl"] - 1 for c in ("", "_surcouche", "_surcouche_etats")}
+defav07 = (g["ecl_defavorable_surcouche"] / g["ecl"] - 1).xs("2007-12")
+ic_bm = (
+    f" En réestimant aussi les deux modèles sur 100 tirages des prêts d'entraînement "
+    f"(D-042), l'intervalle devient {pct(bm.loc['2007-12', 'ecart_relatif_bas'], signe=True)} à "
+    f"{pct(bm.loc['2007-12', 'ecart_relatif_haut'], signe=True)}, et LightGBM provisionne plus "
+    f"que la logistique dans {pct(bm.loc['2007-12', 'part_lightgbm_superieur'])} des tirages."
+    if bm is not None
+    else ""
+)
 ```
 
 # Question et réponse courte
@@ -81,27 +105,26 @@ Remplacer la régression logistique par du machine learning (LightGBM) dans le
 modèle de PD à 12 mois change-t-il la provision IFRS 9, et dans quel sens en
 période de crise ?
 
-**Oui, la provision change, mais beaucoup moins que l'erreur commune aux deux
-modèles.** Au 31/12/2007, avec les mêmes variables, la même survie, la même LGD
-et les mêmes stades, LightGBM provisionne
+**Oui, la provision change, et toujours dans le même sens avant la crise, mais
+beaucoup moins que l'erreur commune aux deux modèles.** Au 31/12/2007, avec les
+mêmes variables, la même survie, le même remboursement anticipé, la même LGD et
+la même règle de stades, LightGBM provisionne
 `{python} fr(t07.loc['lightgbm','ecl']/1e6)` M$ contre
 `{python} fr(t07.loc['logistique','ecl']/1e6)` M$ pour la logistique, soit
-`{python} pct(b07['ecart_relatif'], signe=True)` (intervalle bootstrap à 95 % :
-`{python} pct(b07['ecart_relatif_bas'], signe=True)` à
-`{python} pct(b07['ecart_relatif_haut'], signe=True)`). Mais les deux
-provisions ne couvrent que
-`{python} pct(t07.loc['logistique','ecl']/t07.loc['logistique','pertes_constatees'])`
-à `{python} pct(t07.loc['lightgbm','ecl']/t07.loc['lightgbm','pertes_constatees'])`
-des pertes constatées ensuite sur le même horizon. Entraînés sur 2000-2005,
-aucun des deux modèles ne voit venir la crise ; LightGBM s'en approche un peu
-moins mal.
+`{python} pct(b07['ecart_relatif'], signe=True)` (intervalle à 95 % sur la
+composition du portefeuille : `{python} pct(b07['ecart_relatif_bas'], signe=True)`
+à `{python} pct(b07['ecart_relatif_haut'], signe=True)`).`{python} ic_bm` Mais
+les deux provisions ne couvrent que `{python} pct(couv['logistique'])` à
+`{python} pct(couv['lightgbm'])` des pertes constatées ensuite sur le même
+horizon. Entraînés sur 2000-2005, aucun des deux modèles ne voit venir la
+crise ; LightGBM s'en approche un peu moins mal.
 
 # Données et méthode
 
 - **Données** : échantillon Freddie Mac *Single-Family Loan-Level*,
   millésimes 2000 à 2008 (450 000 prêts, 24,8 millions de lignes prêt-mois),
-  et séries FRED (chômage, indice Case-Shiller, taux à 30 et 10 ans). Les
-  données ne sont pas redistribuées.
+  et séries FRED (chômage, indices de prix national et par État, taux à 30 et
+  10 ans). Les données ne sont pas redistribuées.
 - **Découpage temporel** : modèles estimés sur les prêts octroyés en
   2000-2005 et observés jusqu'au 31/12/2005 ; tout est évalué sur les
   millésimes 2006-2008, qui traversent la crise.
@@ -114,14 +137,16 @@ moins mal.
 | Défaut | 90 jours de retard, ou saisie |
 | PD à 12 mois | logistique de référence, ou LightGBM sur les mêmes variables |
 | PD à maturité | survie en temps discret, 12 premiers mois ancrés sur la PD à 12 mois |
+| Remboursement anticipé | hasard en temps discret, risque concurrent du défaut |
 | LGD | probabilité de régularisation, puis sévérité |
 | EAD | amortissement contractuel |
 | Stade 2 | 30 jours de retard, ou PD à maturité annualisée doublée depuis l'octroi |
 
 Toutes les définitions ont été figées et datées avant le moindre résultat,
 dans [`docs/decisions.md`](https://github.com/selyassine/ecl9/blob/main/docs/decisions.md)
-(D-001 à D-039). Les corrections faites en cours de route y sont datées, et
-les versions antérieures des résultats restent publiées.
+(D-001 à D-042). Les corrections et les améliorations y sont datées ; les
+résultats antérieurs restent publiés (suffixe `_sans_remboursement` pour la
+version 1, sans remboursement anticipé).
 
 # Les deux modèles de PD à 12 mois
 
@@ -145,11 +170,37 @@ LightGBM classe un peu mieux les prêts, mais les deux sous-estiment fortement
 le nombre de défauts une fois la crise venue
 ([`pd12.md`](https://github.com/selyassine/ecl9/blob/main/rapport/resultats/pd12.md)).
 
+# Remboursement anticipé
+
+```{python}
+r = rembt[rembt.modele == "contraint"]
+Markdown(
+    pd.DataFrame(
+        {
+            "Périmètre": r["perimetre"].str.replace("entrainement", "entraînement 2000-2005"),
+            "Remboursements observés": r["observes"].map(lambda v: fr(v, 0)),
+            "Prévus / observés": r["attendu_sur_observe"].map(lambda v: fr(v, 2)),
+            "AUC": r["auc"].map(lambda v: fr(v, 3)),
+        }
+    ).to_markdown(index=False)
+)
+```
+
+Le modèle, estimé sur 2000-2005, a appris le boom de refinancement de
+2001-2003 : quand les taux baissent, les prêts se remboursent. La contrainte
+de signe ne garde que les taux. Sur 2006-2010, avec la macro réalisée, il
+prévoit plus de trois fois trop de remboursements : la baisse des taux de
+2009-2010 n'a pas déclenché de refinancement, faute de valeur nette dans les
+biens et de crédit disponible. Avec la macro figée à l'arrêté, l'erreur se
+réduit à 44 %. Dans le moteur, le remboursement anticipé retire des prêts
+avant qu'ils ne fassent défaut : la provision baisse, surtout sur la durée de
+vie.
+
 # Provision trimestrielle et pertes constatées
 
 ```{python}
 #| label: fig-provision
-#| fig-cap: "Provision (macro figée, stades 1 à 3) et pertes constatées sur le même périmètre et le même horizon. Échelle logarithmique."
+#| fig-cap: "Provision (macro figée, stades 1 à 3, remboursement anticipé) et pertes constatées sur le même périmètre et le même horizon. Échelle logarithmique."
 fig, ax = plt.subplots()
 for nom in ("logistique", "lightgbm"):
     y = tot.xs(nom, level="modele")["ecl"] / 1e6
@@ -180,22 +231,29 @@ for a in ["2006-12", "2007-12", "2008-12", "2009-12", "2010-12"]:
             "LightGBM (M USD)": fr(t.loc["lightgbm", "ecl"] / 1e6),
             "dont stade 3 (M USD)": fr(s3 / 1e6),
             "Pertes constatées (M USD)": fr(t.loc["logistique", "pertes_constatees"] / 1e6),
+            "LightGBM sans remboursement (M USD)": fr(tot1.loc[(a, "lightgbm"), "ecl"] / 1e6),
         }
     )
+x07 = tot.xs("2007-12")["ecl"]
+x09 = tot.xs("2009-12")["ecl"]
+mult = (x09 / x07)
+ratio_pertes = pd.concat([tot.xs(a)["pertes_constatees"] / tot.xs(a)["ecl"] for a in ["2009-12", "2010-03", "2010-06", "2010-09", "2010-12"]])
 Markdown(pd.DataFrame(lignes).to_markdown(index=False))
 ```
 
-La provision est multipliée par 8 à 11 entre fin 2007 et fin 2009, mais
-surtout par le stade 3 : elle **réagit** aux défauts survenus, elle ne les
-**anticipe** pas. De fin 2009 à fin 2010, elle reste 4 à 6 fois inférieure aux pertes
-constatées ; la LGD, sous-estimée d'un facteur 4 sur la crise, y contribue
-autant que la PD.
+La provision est multipliée par `{python} fr(mult.min(), 0)` à
+`{python} fr(mult.max(), 0)` entre fin 2007 et fin 2009, mais surtout par le
+stade 3 : elle **réagit** aux défauts survenus, elle ne les **anticipe** pas.
+De fin 2009 à fin 2010, elle reste `{python} fr(ratio_pertes.min(), 0)` à
+`{python} fr(ratio_pertes.max(), 0)` fois inférieure aux pertes constatées ;
+la LGD, sous-estimée d'un facteur 4 sur la crise, y contribue autant que la
+PD.
 
 # L'écart entre LightGBM et la logistique
 
 ```{python}
 #| label: fig-ecart
-#| fig-cap: "Écart relatif de provision LightGBM / logistique, macro figée, avec l'intervalle bootstrap à 95 % (1 000 tirages des prêts, modèles tenus fixes)."
+#| fig-cap: "Écart relatif de provision LightGBM / logistique, macro figée, avec l'intervalle à 95 % sur la composition du portefeuille (1 000 tirages des prêts, modèles tenus fixes)."
 fig, ax = plt.subplots()
 x = pd.PeriodIndex(boot["arrete"], freq="M").to_timestamp(how="end")
 ax.fill_between(x, 100 * boot["ecart_relatif_bas"], 100 * boot["ecart_relatif_haut"],
@@ -208,39 +266,46 @@ plt.show()
 ```
 
 ```{python}
-b = boot.set_index("arrete").loc[["2006-12", "2007-12", "2008-12", "2009-12", "2010-12"]]
-Markdown(
-    pd.DataFrame(
-        {
-            "Arrêté": b.index,
-            "Écart relatif": [pct(v, 1, True) for v in b["ecart_relatif"]],
-            "IC 95 %": [f"{pct(lo, 1, True)} ; {pct(hi, 1, True)}"
-                        for lo, hi in zip(b["ecart_relatif_bas"], b["ecart_relatif_haut"])],
-            "Écart absolu (M USD)": [fr(v / 1e6, 2) for v in b["ecart_absolu"]],
-        }
-    ).to_markdown(index=False)
+t = b.loc[["2006-12", "2007-12", "2008-12", "2009-12", "2010-12"]]
+tab = pd.DataFrame(
+    {
+        "Arrêté": t.index,
+        "Écart relatif": [pct(v, 1, True) for v in t["ecart_relatif"]],
+        "IC 95 %, portefeuille": [f"{pct(lo, 1, True)} ; {pct(hi, 1, True)}"
+                                  for lo, hi in zip(t["ecart_relatif_bas"], t["ecart_relatif_haut"])],
+        "Écart absolu (M USD)": [fr(v / 1e6, 2) for v in t["ecart_absolu"]],
+    }
 )
+if bm is not None:
+    tab["IC 95 %, modèles réestimés"] = [
+        f"{pct(bm.loc[a, 'ecart_relatif_bas'], 1, True)} ; {pct(bm.loc[a, 'ecart_relatif_haut'], 1, True)}"
+        if a in bm.index else "" for a in t.index
+    ]
+Markdown(tab.to_markdown(index=False))
 ```
 
 Sur les tout premiers arrêtés de 2006, quand le portefeuille ne compte que des
 prêts de quelques mois, LightGBM provisionne moins que la logistique. De fin
-2006 à fin 2008, il provisionne nettement plus, de 27 à 41 % ; l'écart se
-referme à partir de 2009, quand la provision des prêts déjà en défaut,
-identique pour les deux modèles, domine. L'intervalle mesure l'incertitude due
-à la composition du portefeuille, pas celle de l'estimation des modèles
-(D-037).
+2006 à fin 2008, il provisionne nettement plus, de
+`{python} pct(avant.min(), 0, True)` à `{python} pct(avant.max(), 0, True)` ;
+l'écart se referme ensuite (`{python} pct(apres.min(), 0, True)` à
+`{python} pct(apres.max(), 0, True)` de fin 2009 à fin 2010), quand la
+provision des prêts déjà en défaut, identique pour les deux modèles, domine.
+Le premier intervalle ne mesure que la composition du portefeuille (D-037) ;
+le second y ajoute l'incertitude d'estimation des deux modèles de PD à
+12 mois (D-042), la survie, le remboursement et la LGD restant fixes.
 
-# Le stade 2 : le retard au seuil retenu, les taux en dessous
+# Le stade 2
 
 ```{python}
 #| label: fig-seuils
-#| fig-cap: "Part de l'encours en stade 2 selon le seuil de dégradation de la PD à maturité, modèle LightGBM. Aux seuils 2 à 4, les courbes se confondent avec celle du retard seul."
+#| fig-cap: "Part de l'encours en stade 2 selon le seuil de dégradation de la PD à maturité, modèle LightGBM."
 fig, ax = plt.subplots()
-s = seuils[seuils.modele == "lightgbm"].copy()
-s["date"] = pd.PeriodIndex(s["arrete"], freq="M").to_timestamp(how="end")
+sl = seuils[seuils.modele == "lightgbm"].copy()
+sl["date"] = pd.PeriodIndex(sl["arrete"], freq="M").to_timestamp(how="end")
 for seuil, couleur, style, nom in [("1.5", AQUA, "-", "seuil 1,5"), ("2.0", ORANGE, "-", "seuil 2 (retenu)"),
-                                    ("retard seul", SECONDAIRE, "--", "retard seul")]:
-    v = s[s.seuil == seuil]
+                                    ("4.0", BLEU, ":", "seuil 4"), ("retard seul", SECONDAIRE, "--", "retard seul")]:
+    v = sl[sl.seuil == seuil]
     ax.plot(v["date"], 100 * v["part_encours_stade2"], color=couleur, linestyle=style, label=nom)
 ax.set_ylabel("% de l'encours")
 ax.legend(loc="upper left")
@@ -248,37 +313,35 @@ plt.show()
 ```
 
 ```{python}
-g = seuils.pivot_table(index="arrete", columns=["modele", "seuil"], values="part_encours_stade2")
-ajout = {
-    nom: g.xs(nom, axis=1, level=0).drop(columns=["1.5", "retard seul"]).sub(g[(nom, "retard seul")], axis=0).max().max()
-    for nom in ("logistique", "lightgbm")
-}
+gs = seuils.pivot_table(index="arrete", columns=["modele", "seuil"], values="part_encours_stade2")
+avant08 = gs.loc[:"2008-12"]
+ajout_avant = max(
+    (avant08[(n, "2.0")] - avant08[(n, "retard seul")]).max() for n in NOM
+)
+ajout_apres = max((gs[(n, "2.0")] - gs[(n, "retard seul")]).max() for n in NOM)
 Markdown(
-    f"Aux seuils 2 à 4, le critère de dégradation ajoute au plus "
-    f"{pct(ajout['logistique'], 2)} de l'encours en stade 2 pour la logistique et "
-    f"{pct(ajout['lightgbm'], 2)} pour LightGBM, sur les 20 arrêtés : le stade 2 "
-    f"vient du retard. Au seuil 1,5, il bascule au contraire de 2 % à "
-    f"{pct(g[('lightgbm', '1.5')].max())} de l'encours entre 2009 et 2010."
+    f"Jusqu'à fin 2008, au seuil retenu de 2, le critère de dégradation ajoute au plus "
+    f"{pct(ajout_avant, 2)} de l'encours au stade 2 dû au retard : il ne voit pas venir "
+    f"la crise. En 2009-2010, il ajoute jusqu'à {pct(ajout_apres, 1)} de l'encours, de "
+    f"façon très instable d'un trimestre à l'autre."
 )
 ```
 
-Deux mécanismes expliquent ce profil. D'abord, la PD à maturité est dominée
-par les hasards de survie au-delà de 12 mois, et le modèle de survie, estimé
-sur 2000-2005, n'a appris aucune sensibilité au chômage ni aux prix
-immobiliers : jusqu'en 2008, le rapport entre PD à l'arrêté et PD à l'octroi
-reste proche de 1. Ensuite, le seul canal macro restant est l'écart entre le
-taux du prêt et le taux de marché. Quand les taux chutent en 2009-2010, cet
-écart s'élargit et la PD à maturité de la plupart des prêts monte d'environ
-50 %, sans aucune dégradation de crédit observée : le seuil 1,5 fait alors
-basculer une grande partie du portefeuille en stade 2, de façon très
-instable d'un trimestre à l'autre. Le seuil de 2, figé avant les résultats,
-évite cet effet de falaise, mais il ne capte pas non plus la crise.
+Deux mécanismes expliquent ce profil. La PD à maturité est dominée par les
+hasards de survie au-delà de 12 mois, et le modèle de survie, estimé sur
+2000-2005, n'a appris aucune sensibilité au chômage ni aux prix immobiliers :
+jusqu'en 2008, le rapport entre PD à l'arrêté et PD à l'octroi reste proche
+de 1. Le seul canal macro restant est celui des taux, qui agit à la fois sur
+le défaut et sur le remboursement anticipé. Quand les taux chutent en
+2009-2010, ce canal fait varier la PD à maturité de nombreux prêts sans
+dégradation de crédit observée, et les prêts franchissent le seuil par
+intermittence. La règle de stades capte donc un artefact de taux plutôt que
+la crise.
 
 # Scénarios et sensibilité aux pondérations
 
 ```{python}
 q = pond[(pond.arrete == "2007-12")].copy()
-q["Provision (M USD)"] = (q["ecl"] / 1e6).map(lambda v: fr(v, 2))
 q["Écart à la macro figée"] = q["ecart_a_figee"].map(lambda v: pct(v, 1, True))
 q["Surcouche"] = np.where(q["surcouche"], "oui", "non")
 t = q.pivot_table(index=["ponderations"], columns=["modele", "Surcouche"],
@@ -289,42 +352,51 @@ Markdown("Au 31/12/2007 :\n\n" + t.reset_index(names="Pondérations").to_markdow
 ```
 
 Dans le résultat principal, les scénarios n'agissent que par les taux, seul
-canal macro appris par le modèle de survie ; pondérés 50/30/20, ils ajoutent
-0,4 à 3,6 % à la provision selon l'arrêté. La surcouche, tirée d'Elul et al.
-(2010) et publiée à part (D-034), fait réagir la PD au chômage et à la CLTV
-réévaluée : elle porte l'effet à 14 % au plus. Même le scénario défavorable
-seul, avec surcouche, n'ajoute qu'un peu plus d'un quart à la provision de fin
-2007 : aucune pondération plausible ne comble un écart de 1 à 10 avec les
-pertes.
+canal macro appris ; pondérés 50/30/20, ils changent la provision de
+`{python} pct(eff[''].min(), 1, True)` à `{python} pct(eff[''].max(), 1, True)`
+selon l'arrêté. La surcouche tirée d'Elul et al. (2010), publiée à part
+(D-034), fait réagir la PD au chômage et à la CLTV réévaluée : l'effet pondéré
+va de `{python} pct(eff['_surcouche'].min(), 1, True)` à
+`{python} pct(eff['_surcouche'].max(), 1, True)` avec l'indice de prix
+national, et de `{python} pct(eff['_surcouche_etats'].min(), 1, True)` à
+`{python} pct(eff['_surcouche_etats'].max(), 1, True)` avec l'indice de chaque
+État (D-041). Même le scénario défavorable seul, avec surcouche, n'ajoute que
+`{python} pct(defav07.min(), 0)` à `{python} pct(defav07.max(), 0)` à la
+provision de fin 2007 : aucune pondération plausible ne comble un écart de 1 à
+10 avec les pertes.
 
 # Backtest par génération
 
 ```{python}
-g = gen.pivot_table(index="millesime", columns="modele", values=["ecl_maturite", "pertes_constatees"])
+gg = gen.pivot_table(index="millesime", columns="modele", values=["ecl_maturite", "pertes_constatees"])
+g1 = gen1.pivot_table(index="millesime", columns="modele", values="ecl_maturite")
 Markdown(
     pd.DataFrame(
         {
-            "Millésime": g.index,
-            "Perte attendue à maturité, logistique (M USD)": (g[("ecl_maturite", "logistique")] / 1e6).map(fr),
-            "LightGBM (M USD)": (g[("ecl_maturite", "lightgbm")] / 1e6).map(fr),
-            "Pertes constatées (M USD)": (g[("pertes_constatees", "logistique")] / 1e6).map(fr),
-            "Couverture LightGBM": (g[("ecl_maturite", "lightgbm")] / g[("pertes_constatees", "logistique")]).map(pct),
+            "Millésime": gg.index,
+            "Perte attendue à maturité, logistique (M USD)": (gg[("ecl_maturite", "logistique")] / 1e6).map(fr),
+            "LightGBM (M USD)": (gg[("ecl_maturite", "lightgbm")] / 1e6).map(fr),
+            "LightGBM sans remboursement (M USD)": (g1["lightgbm"] / 1e6).map(fr),
+            "Pertes constatées (M USD)": (gg[("pertes_constatees", "logistique")] / 1e6).map(fr),
         }
     ).to_markdown(index=False)
 )
 ```
 
-Sur toute la durée de vie, les deux modèles ne diffèrent que de 2 à 4 % :
-seule la première année dépend de la PD à 12 mois.
+À la fin de l'année d'octroi, la perte attendue sur toute la durée de vie ne
+couvre qu'une petite fraction des pertes constatées. Le remboursement
+anticipé la réduit encore : avec les taux bas de fin 2008 figés, le modèle
+prévoit tant de remboursements que la perte attendue du millésime 2008 est
+divisée par 10 à 20, alors que ces remboursements ne se sont pas produits.
 
 # Contrôles
 
 - Chaque brique est vérifiée sur un cas calculé à la main
   (`tests/test_cas_a_la_main.py`).
 - Le moteur vectorisé est identique au calcul prêt par prêt.
-- Un script R indépendant recalcule la provision : écart relatif maximal de
-  1e-12 sur 50 prêts réels au 31/12/2007, et sur 50 prêts simulés en
-  intégration continue.
+- Un script R indépendant recalcule la provision, remboursement anticipé
+  compris : écart relatif maximal inférieur à 1e-12 sur 50 prêts réels au
+  31/12/2007, et vérifié en intégration continue sur 50 prêts simulés.
 
 # Limites
 
@@ -332,16 +404,19 @@ seule la première année dépend de la PD à 12 mois.
   périmètre simplifié d'IFRS 9, sans valeur de conseil comptable.
 - Scénarios construits par l'auteur ; surcouche tirée d'une étude publiée
   après la crise et estimée sur un autre échantillon.
-- Remboursement anticipé non modélisé ; capital tenu à son niveau de
-  l'arrêté dans la surcouche.
-- L'intervalle de confiance ne couvre pas l'incertitude d'estimation des
-  modèles.
+- Le modèle de remboursement, comme celui du défaut, n'a vu que 2000-2005 :
+  il surestime fortement les remboursements de la crise.
+- L'intervalle avec réestimation tient fixes la survie, le remboursement et
+  la LGD, et ne porte que sur 100 tirages.
 
 # Conclusion
 
-Remplacer la logistique par LightGBM change la provision de 27 à 41 % entre fin
-2006 et fin 2008, dans le sens d'une provision plus élevée, et de moins de
-10 % ensuite. Ce gain est réel mais second : entraînés sur une période sans
-crise, les deux modèles sous-estiment les pertes d'un facteur 10 au moment où
-cela compte. Le choix de l'algorithme pèse moins que ce que les données
-d'entraînement ne contiennent pas.
+Remplacer la logistique par LightGBM augmente la provision de
+`{python} pct(avant.min(), 0)` à `{python} pct(avant.max(), 0)` entre fin 2006
+et fin 2008, un écart qui résiste à l'incertitude d'échantillonnage, puis de
+moins de `{python} pct(apres.max() + 0.005, 0)` ensuite. Ce gain est réel mais
+second : entraînés sur une période sans crise, les deux modèles sous-estiment
+les pertes d'un facteur 10 ou plus au moment où cela compte, et le remboursement
+anticipé, appris lui aussi avant la crise, aggrave cette sous-estimation. Le
+choix de l'algorithme pèse moins que ce que les données d'entraînement ne
+contiennent pas.

@@ -1,4 +1,4 @@
-.PHONY: installer donnees verifier panneau exploration pd12 survie lgd moteur trimestriel double-calcul sensibilites pipeline note tests lint
+.PHONY: installer donnees verifier panneau exploration pd12 survie remboursement lgd moteur trimestriel double-calcul sensibilites bootstrap-modeles pipeline note tests lint
 
 installer:
 	pip install -e ".[dev,eda,rapport]"
@@ -21,23 +21,32 @@ pd12: panneau
 survie: panneau
 	python pipeline/etape_04_survie.py
 
+remboursement: panneau
+	python pipeline/etape_04b_remboursement.py
+
 lgd: panneau
 	python pipeline/etape_05_lgd.py
 
-moteur: pd12 survie lgd
+moteur: pd12 survie remboursement lgd
 	python pipeline/etape_06_moteur.py
 
 trimestriel: moteur
 	python pipeline/etape_07_trimestriel.py
 	python pipeline/etape_07_trimestriel.py --trajectoire scenarios
+	python pipeline/etape_07_trimestriel.py --sans-remboursement
+	python pipeline/etape_07_trimestriel.py --trajectoire scenarios --sans-remboursement
 
 double-calcul: moteur
 	python pipeline/etape_08_double_calcul_r.py
 
 sensibilites: trimestriel
 	python pipeline/etape_09_sensibilites.py
+	python pipeline/etape_09_sensibilites.py --sans-remboursement
 
-pipeline: exploration sensibilites double-calcul
+bootstrap-modeles: trimestriel
+	python pipeline/etape_10_bootstrap_modeles.py
+
+pipeline: exploration sensibilites double-calcul bootstrap-modeles
 
 note:
 	cd rapport && quarto render note.qmd

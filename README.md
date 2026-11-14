@@ -17,24 +17,28 @@
 > tested on the 2006-2008 vintages so that they cross the crisis without having
 > seen it. All definitions were fixed and dated in
 > [`docs/decisions.md`](docs/decisions.md) before any model was fitted.
-> **Answer:** yes, but the effect is second-order. With everything else equal,
-> LightGBM raises the allowance by 27-41% between end-2006 and end-2008
-> (+38% at 31/12/2007, 95% bootstrap interval +35% to +40%), and by 6-8% in
-> 2009-2010. Yet both models, trained before the crisis, cover only 6-9% of the
-> losses later realised over the same horizon. Report and documentation are in
+> **Answer:** yes, but the effect is second-order. With everything else equal
+> (survival, prepayment, LGD, staging rule), LightGBM raises the allowance by
+> 31-52% between end-2006 and end-2008 (+47% at 31/12/2007; 95% interval +27%
+> to +80% when both models are re-estimated on bootstrap samples), and by
+> 6-10% in 2009-2010. Yet both models, trained before the crisis, cover only
+> 5-8% of the losses later realised over the same horizon. Report and documentation are in
 > French.
 
 **Note de provisionnement : <https://selyassine.github.io/ecl9/>**
 
-**Réponse : oui, LightGBM change la provision, mais beaucoup moins que
-l'erreur commune aux deux modèles.** Avec les mêmes variables, la même survie,
-la même LGD et les mêmes stades, LightGBM provisionne 27 à 41 % de plus que la
-logistique entre fin 2006 et fin 2008 (au 31/12/2007 : 11,7 contre 8,5 M$,
-écart + 38 %, intervalle bootstrap à 95 % de + 35 à + 40 %), puis 6 à 8 % de
-plus en 2009-2010, quand les défauts déjà survenus dominent. Mais entraînés sur
-2000-2005, les deux modèles ne voient pas venir la crise : au 31/12/2007, leurs
-provisions ne couvrent que 6 à 9 % des pertes constatées ensuite sur le même
-horizon.
+**Réponse : oui, LightGBM change la provision, toujours à la hausse avant la
+crise, mais beaucoup moins que l'erreur commune aux deux modèles.** Avec les
+mêmes variables, la même survie, le même remboursement anticipé, la même LGD
+et la même règle de stades, LightGBM provisionne 31 à 52 % de plus que la
+logistique entre fin 2006 et fin 2008. Au 31/12/2007, c'est 10,5 contre
+7,1 M$, soit + 47 % ; l'intervalle à 95 % est de + 44 à + 51 % sur la
+composition du portefeuille, et de + 27 à + 80 % en réestimant aussi les deux
+modèles (LightGBM au-dessus dans 100 tirages sur 100). L'écart retombe à 6 à
+10 % en 2009-2010, quand les défauts déjà survenus dominent. Mais entraînés
+sur 2000-2005, les deux modèles ne voient pas venir la crise : au 31/12/2007,
+leurs provisions ne couvrent que 5 à 8 % des pertes constatées ensuite sur le
+même horizon.
 
 - PD à 12 mois : LightGBM classe un peu mieux (AUC 0,815 contre 0,789 sur
   2006-2010) et sous-estime moins les défauts (31 % des défauts prévus contre
@@ -43,12 +47,20 @@ horizon.
   identifiable sur 2000-2005 ([`survie.md`](rapport/resultats/survie.md)) ;
   la LGD est sous-estimée d'un facteur 4 sur la crise
   ([`lgd_moteur.md`](rapport/resultats/lgd_moteur.md)).
-- Stade 2 : au seuil retenu (PD à maturité doublée), le critère de
-  dégradation n'ajoute rien au retard de paiement ; au seuil 1,5, la baisse
-  des taux de 2009-2010 fait basculer jusqu'à 82 % de l'encours.
-- Scénarios : pondérés 50/30/20, ils ajoutent 0,4 à 3,6 % ; 14 % au plus avec
-  une sensibilité chômage et prix tirée de la littérature, publiée à part
-  ([`stades_backtest.md`](rapport/resultats/stades_backtest.md)).
+- Remboursement anticipé : appris sur le boom de refinancement de 2001-2003,
+  le modèle prévoit sur 2006-2010 trois fois plus de remboursements qu'il n'y
+  en a eu ; il baisse la provision, surtout sur la durée de vie
+  ([`remboursement_mesures.csv`](rapport/resultats/remboursement_mesures.csv)).
+- Stade 2 : jusqu'à fin 2008, le critère de dégradation (PD à maturité
+  doublée) n'ajoute rien au retard de paiement ; en 2009-2010, la baisse des
+  taux le fait se déclencher par intermittence, sans dégradation de crédit.
+- Scénarios : pondérés 50/30/20, ils changent la provision de moins de 4 % ;
+  12 % au plus avec une sensibilité chômage et prix tirée de la littérature,
+  publiée à part, que les prix soient nationaux ou par État.
+
+La version 1, sans remboursement anticipé, reste publiée
+([`stades_backtest.md`](rapport/resultats/stades_backtest.md), fichiers
+`*_sans_remboursement.csv`) : la conclusion est la même.
 
 ## État d'avancement
 
@@ -100,7 +112,9 @@ résultat.
 ## Résultats publiés
 
 - L'écart de provision entre logistique et LightGBM, avec un intervalle de
-  confiance bootstrap : [`bootstrap_ecart.csv`](rapport/resultats/bootstrap_ecart.csv).
+  confiance bootstrap : [`bootstrap_ecart.csv`](rapport/resultats/bootstrap_ecart.csv)
+  (portefeuille) et [`bootstrap_modeles.csv`](rapport/resultats/bootstrap_modeles.csv)
+  (modèles réestimés).
 - La part du portefeuille en stade 2 selon le seuil :
   [`grille_seuils_stade2.csv`](rapport/resultats/grille_seuils_stade2.csv).
 - La procyclicité, provision trimestre par trimestre de 2006 à 2010 :
@@ -125,8 +139,9 @@ make pipeline               # modèles, provisions 2006-2010, double calcul R, s
 make note                   # note Quarto (Quarto installé à part)
 ```
 
-Le pipeline complet prend environ une heure sur une machine de 4 cœurs et
-16 Go.
+Le pipeline complet prend environ quatre heures sur une machine de 4 cœurs et
+16 Go, dont deux heures et demie pour le bootstrap avec réestimation des
+modèles.
 
 Les données ne sont pas versionnées : la licence Freddie Mac en interdit la
 redistribution. Le dépôt contient seulement le
@@ -151,8 +166,8 @@ ecl9/
 - Périmètre simplifié de la norme IFRS 9, sans valeur de conseil comptable.
 - Scénarios macroéconomiques construits par l'auteur, pas ceux d'un
   établissement.
-- Remboursement anticipé non modélisé en version 1, ce qui allonge la durée
-  d'exposition des prêts en stade 2.
+- Remboursement anticipé modélisé depuis la version 2 (D-040), mais appris
+  avant la crise : il surestime fortement les remboursements de 2008-2010.
 
 ## Licence
 
