@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tableau de bord : provision IFRS 9, logistique ou LightGBM</title>
+<style>
+:root {
+  color-scheme: light;
+  --plan: #f9f9f7; --surface: #fcfcfb; --encre: #0b0b0b; --encre-2: #52514e; --discret: #898781;
+  --grille: #e1e0d9; --axe: #c3c2b7; --bord: rgba(11,11,11,0.10);
+  --logistique: #2a78d6; --lightgbm: #eb6834; --prevue: #1baf7a; --observe: #52514e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --plan: #0d0d0d; --surface: #1a1a19; --encre: #f0efec; --encre-2: #c3c2b7; --discret: #898781;
+    --grille: #2c2c2a; --axe: #383835; --bord: rgba(255,255,255,0.10);
+    --logistique: #3987e5; --lightgbm: #d95926; --prevue: #199e70; --observe: #c3c2b7;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--plan); color: var(--encre);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 56px; }
+h1 { font-size: 26px; line-height: 1.2; margin: 0 0 6px; text-wrap: balance; }
+h2 { font-size: 17px; margin: 0 0 2px; }
+p { margin: 0 0 10px; }
+a { color: inherit; }
+.chapo { color: var(--encre-2); max-width: 70ch; }
+.liens { display: flex; gap: 16px; flex-wrap: wrap; margin: 10px 0 20px; font-size: 14px; }
+.filtres { position: sticky; top: 0; z-index: 5; background: var(--plan); padding: 10px 0;
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--bord); }
+.filtres label { font-weight: 600; }
+select, input[type=range] { accent-color: var(--logistique); font: inherit; }
+select { padding: 5px 8px; border: 1px solid var(--axe); border-radius: 6px; background: var(--surface); color: var(--encre); }
+.filtres input[type=range] { flex: 1 1 180px; max-width: 420px; }
+.grille { display: grid; gap: 16px; margin-top: 16px; }
+.deux { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.carte { background: var(--surface); border: 1px solid var(--bord); border-radius: 10px; padding: 16px; min-width: 0; }
+.sous { color: var(--encre-2); font-size: 13.5px; margin-bottom: 10px; }
+.tuiles { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 16px; margin-top: 16px; }
+@media (max-width: 820px) { .tuiles { grid-template-columns: 1fr 1fr; } .tuiles .hero { grid-column: 1 / -1; } }
+.tuile .etiquette { color: var(--encre-2); font-size: 13.5px; }
+.tuile .valeur { font-size: 28px; font-weight: 600; line-height: 1.2; margin: 2px 0; }
+.tuile.hero .valeur { font-size: 52px; }
+.tuile .detail { color: var(--encre-2); font-size: 13px; }
+.cle { display: inline-block; width: 14px; height: 0; border-top: 3px solid; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.cle.bande { height: 10px; border: 0; opacity: 0.25; }
+.legende { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13.5px; color: var(--encre-2); margin-bottom: 6px; }
+.graphique { position: relative; }
+.graphique svg { display: block; width: 100%; touch-action: pan-y; }
+.graphique text { fill: var(--discret); font-size: 12px; font-variant-numeric: tabular-nums; }
+.bulle { position: absolute; top: 0; pointer-events: none; background: var(--surface); border: 1px solid var(--axe);
+  border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 2px 10px rgba(0,0,0,0.12); white-space: nowrap; display: none; }
+.bulle .titre { color: var(--encre-2); margin-bottom: 4px; }
+.bulle .ligne { display: flex; align-items: center; gap: 4px; }
+.bulle b { margin-right: 6px; }
+.bulle span { color: var(--encre-2); }
+.table-defile { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { padding: 6px 5px; text-align: right; border-bottom: 1px solid var(--grille); font-variant-numeric: tabular-nums; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--encre-2); font-weight: 600; }
+.barres { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; align-items: center; margin: 4px 0 14px; }
+.barres .nom { font-size: 13.5px; color: var(--encre-2); }
+.barres .paire { display: grid; gap: 2px; }
+.barre { display: flex; align-items: center; gap: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.barre i { display: block; height: 14px; border-radius: 0 4px 4px 0; min-width: 1px; }
+.curseurs { display: grid; grid-template-columns: auto 1fr auto; gap: 8px 12px; align-items: center; margin-bottom: 12px; }
+.curseurs output { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 4ch; text-align: right; }
+.choix { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+button { font: inherit; padding: 5px 10px; border: 1px solid var(--axe); border-radius: 6px; background: var(--surface); color: var(--encre); cursor: pointer; }
+details { margin-top: 10px; }
+summary { cursor: pointer; color: var(--encre-2); font-size: 13.5px; }
+.limites li { margin-bottom: 4px; }
+footer { color: var(--encre-2); font-size: 13px; margin-top: 24px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Remplacer la régression logistique par LightGBM change-t-il la provision IFRS 9 ?</h1>
+  <p class="chapo">Résultats du moteur ecl9 sur 450 000 prêts immobiliers Freddie Mac octroyés de 2000 à 2008,
+    arrêtés trimestriels de 2006 à 2010. Les deux modèles de probabilité de défaut sont estimés sur la même
+    période d'avant crise et passent dans le même moteur de calcul. Choisissez un arrêté pour lire tous les
+    chiffres à cette date.</p>
+  <div class="liens">
+    <a href="./">Lire la note complète</a>
+    <a href="https://github.com/selyassine/ecl9">Code et journal des décisions</a>
+  </div>
+
+  <div class="filtres">
+    <label for="arrete">Arrêté</label>
+    <select id="arrete"></select>
+    <input type="range" id="arrete-curseur" min="0" step="1" aria-label="Arrêté">
+  </div>
+
+  <div class="tuiles">
+    <div class="carte tuile hero">
+      <div class="etiquette">Écart de provision, LightGBM par rapport à la logistique</div>
+      <div class="valeur" id="t-ecart"></div>
+      <div class="detail" id="t-ecart-detail"></div>
+    </div>
+    <div class="carte tuile">
+      <div class="etiquette"><span class="cle" style="border-color:var(--logistique)"></span>Provision logistique</div>
+      <div class="valeur" id="t-log"></div>
+      <div class="detail" id="t-log-detail"></div>
+    </div>
+    <div class="carte tuile">
+      <div class="etiquette"><span class="cle" style="border-color:var(--lightgbm)"></span>Provision LightGBM</div>
+      <div class="valeur" id="t-lgb"></div>
+      <div class="detail" id="t-lgb-detail"></div>
+    </div>
+    <div class="carte tuile">
+      <div class="etiquette">Pertes constatées ensuite</div>
+      <div class="valeur" id="t-pertes"></div>
+      <div class="detail" id="t-pertes-detail"></div>
+    </div>
+  </div>
+
+  <div class="grille deux">
+    <section class="carte">
+      <h2>Provision et pertes constatées</h2>
+      <div class="sous">Millions de dollars, échelle logarithmique. Macro figée, stades 1 à 3. Les pertes sont
+        celles du même périmètre sur le même horizon.</div>
+      <div class="legende">
+        <span><span class="cle" style="border-color:var(--logistique)"></span>Logistique</span>
+        <span><span class="cle" style="border-color:var(--lightgbm)"></span>LightGBM</span>
+        <span><span class="cle" style="border-color:var(--observe)"></span>Pertes constatées</span>
+      </div>
+      <div class="graphique" id="g-ecl"></div>
+    </section>
+    <section class="carte">
+      <h2>Écart entre les deux modèles</h2>
+      <div class="sous">Provision LightGBM rapportée à la provision logistique, en pourcentage. La bande est
+        l'intervalle à 95 % obtenu en rééchantillonnant le portefeuille.</div>
+      <div class="legende">
+        <span><span class="cle" style="border-color:var(--lightgbm)"></span>Écart relatif</span>
+        <span><span class="cle bande" style="background:var(--lightgbm)"></span>Intervalle à 95 %</span>
+        <span><span class="cle" style="border-color:var(--encre-2)"></span>Intervalle avec modèles réestimés</span>
+      </div>
+      <div class="graphique" id="g-ecart"></div>
+    </section>
+  </div>
+
+  <div class="grille deux">
+    <section class="carte">
+      <h2>Provision par stade au <span class="date-arrete"></span></h2>
+      <div class="sous">Millions de dollars, taux en pourcentage de l'encours. Le stade 3 est identique dans les deux modèles : la probabilité de
+        défaut n'y joue plus.</div>
+      <div class="legende">
+        <span><span class="cle" style="border-color:var(--logistique)"></span>Logistique</span>
+        <span><span class="cle" style="border-color:var(--lightgbm)"></span>LightGBM</span>
+      </div>
+      <div class="barres" id="barres-stades"></div>
+      <div class="table-defile"><table id="table-stades"></table></div>
+    </section>
+    <section class="carte">
+      <h2>Scénarios économiques au <span class="date-arrete"></span></h2>
+      <div class="sous">Réglez le poids de chaque scénario. Les poids sont ramenés à 100 %. La courbe donne
+        l'écart entre la provision pondérée et la provision à macro figée.</div>
+      <div class="curseurs">
+        <label for="p-central">Central</label><input type="range" id="p-central" min="0" max="100" value="50"><output id="o-central"></output>
+        <label for="p-defavorable">Défavorable</label><input type="range" id="p-defavorable" min="0" max="100" value="30"><output id="o-defavorable"></output>
+        <label for="p-favorable">Favorable</label><input type="range" id="p-favorable" min="0" max="100" value="20"><output id="o-favorable"></output>
+      </div>
+      <div class="choix">
+        <label for="surcouche">Ajustement manuel</label>
+        <select id="surcouche">
+          <option value="sans">Aucun</option>
+          <option value="nationale">Prix nationaux</option>
+          <option value="etats">Prix par État</option>
+        </select>
+        <button type="button" id="p-reinit">Revenir à 50 / 30 / 20</button>
+      </div>
+      <div class="table-defile"><table id="table-scenarios"></table></div>
+      <div class="legende" style="margin-top:12px">
+        <span><span class="cle" style="border-color:var(--logistique)"></span>Logistique</span>
+        <span><span class="cle" style="border-color:var(--lightgbm)"></span>LightGBM</span>
+      </div>
+      <div class="graphique" id="g-scenarios"></div>
+    </section>
+  </div>
+
+  <div class="grille deux">
+    <section class="carte">
+      <h2>Perte en cas de défaut, prévue et réalisée</h2>
+      <div class="sous">Par année de défaut, pondérée par le capital. Le modèle est estimé sur les défauts
+        d'avant 2006. Seules les années comptant au moins <span id="lgd-min"></span> défauts résolus sont tracées.</div>
+      <div class="legende">
+        <span><span class="cle" style="border-color:var(--prevue)"></span>Prévue</span>
+        <span><span class="cle" style="border-color:var(--observe)"></span>Réalisée</span>
+      </div>
+      <div class="graphique" id="g-lgd"></div>
+    </section>
+    <section class="carte">
+      <h2>Générations 2006 à 2008 jusqu'à maturité</h2>
+      <div class="sous">Provision à maturité de chaque modèle calculée à l'octroi, contre les pertes constatées jusqu'en juin 2026.
+        Millions de dollars.</div>
+      <div class="table-defile"><table id="table-generations"></table></div>
+      <h2 style="margin-top:18px">Ce que le modèle ne sait pas faire</h2>
+      <ul class="limites sous">
+        <li>La survie ne réagit ni au chômage ni aux prix : les scénarios passent surtout par la probabilité de défaut à 12 mois.</li>
+        <li>La sévérité des pertes est sous-estimée de moitié pendant la crise.</li>
+        <li>Le remboursement anticipé est surestimé d'un facteur trois environ en crise.</li>
+        <li>Le passage en stade 2 n'utilise aucun critère qualitatif.</li>
+      </ul>
+    </section>
+  </div>
+
+  <section class="carte" style="margin-top:16px">
+    <h2>Toutes les valeurs par arrêté</h2>
+    <div class="sous">Provisions et pertes en millions de dollars, macro figée.</div>
+    <details>
+      <summary>Afficher le tableau</summary>
+      <div class="table-defile"><table id="table-arretes"></table></div>
+    </details>
+  </section>
+
+  <footer>Yassine. Les chiffres viennent des fichiers de <code>rapport/resultats/</code> du dépôt.
+    Aucune donnée prêt par prêt n'est publiée ici.</footer>
+</main>
+
+<script id="donnees" type="application/json">__DONNEES__</script>
+<script>
+"use strict";
+const D = JSON.parse(document.getElementById("donnees").textContent);
+const MODELES = ["logistique", "lightgbm"];
+const NOM = { logistique: "Logistique", lightgbm: "LightGBM" };
+const COULEUR = { logistique: "var(--logistique)", lightgbm: "var(--lightgbm)" };
+const STADES = ["1", "2", "3"];
+const MOIS = { "03": "mars", "06": "juin", "09": "septembre", "12": "décembre" };
+const FIN = { "03": "31", "06": "30", "09": "30", "12": "31" };
+const n = D.arretes.length;
+const etat = { i: Math.max(0, D.arretes.indexOf("2007-12")), surcouche: "sans" };
+
+const SVG = "http://www.w3.org/2000/svg";
+function el(nom, attributs, ...enfants) {
+  const svg = ["svg", "g", "path", "line", "rect", "circle", "text"].includes(nom);
+  const e = svg ? document.createElementNS(SVG, nom) : document.createElement(nom);
+  for (const [k, v] of Object.entries(attributs || {})) e.setAttribute(k, v);
+  for (const c of enfants) e.append(c);
+  return e;
+}
+const nf = (d) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const entier = (v) => nf(0).format(v);
+function millions(v) { const m = v / 1e6; return nf(m < 10 ? 2 : m < 100 ? 1 : 0).format(m); }
+const musd = (v) => millions(v) + " M$";
+function pct(v, signe, d = 0) { return (signe && v > 0 ? "+" : "") + nf(d).format(v * 100).replace("-", "−") + " %"; }
+const dateLongue = (a) => { const [an, m] = a.split("-"); return FIN[m] + " " + MOIS[m] + " " + an; };
+const dateCourte = (a) => { const [an, m] = a.split("-"); return "T" + (+m / 3) + " " + an; };
+const somme = (modele, champ, i) => STADES.reduce((s, st) => s + D.par_stade[modele][st][champ][i], 0);
+
+/* Graphique en lignes : réticule, bulle listant toutes les séries, clic pour choisir l'abscisse. */
+function lignes(conteneur, o) {
+  conteneur.replaceChildren();
+  const L = Math.max(280, conteneur.clientWidth), H = 270;
+  const m = { g: 46, d: 14, h: 10, b: 26 };
+  const k = o.etiquettes.length;
+  const x = (i) => m.g + (k === 1 ? 0 : (i * (L - m.g - m.d)) / (k - 1));
+  const tout = o.series.flatMap((s) => s.valeurs).concat(o.bande ? o.bande.bas.concat(o.bande.haut) : [])
+    .concat((o.barres || []).flatMap((b) => [b.bas, b.haut])).filter((v) => v != null && (!o.log || v > 0));
+  let min = Math.min(...tout), max = Math.max(...tout), graduations = [];
+  if (o.log) {
+    const a = Math.floor(Math.log10(min)), b = Math.ceil(Math.log10(max));
+    for (let p = a; p <= b; p++) graduations.push(10 ** p);
+    min = 10 ** a; max = 10 ** b;
+  } else {
+    if (o.zero) { min = Math.min(min, 0); max = Math.max(max, 0); }
+    const brut = (max - min) / 5, mag = 10 ** Math.floor(Math.log10(brut));
+    const pas = [1, 2, 2.5, 5, 10].map((f) => f * mag).find((p) => p >= brut);
+    min = Math.floor(min / pas + 1e-9) * pas; max = Math.ceil(max / pas - 1e-9) * pas;
+    for (let v = min; v <= max + pas / 2; v += pas) graduations.push(Math.abs(v) < pas / 1e6 ? 0 : v);
+  }
+  const t = o.log ? (v) => Math.log10(v) : (v) => v;
+  const y = (v) => m.h + (H - m.h - m.b) * (1 - (t(v) - t(min)) / (t(max) - t(min)));
+  const svg = el("svg", { viewBox: `0 0 ${L} ${H}`, height: H, role: "img", "aria-label": o.titre });
+  for (const g of graduations) {
+    svg.append(el("line", { x1: m.g, x2: L - m.d, y1: y(g), y2: y(g), stroke: o.zero && g === 0 ? "var(--axe)" : "var(--grille)", "stroke-width": 1 }));
+    svg.append(el("text", { x: m.g - 8, y: y(g) + 4, "text-anchor": "end" }, o.formatAxe(g)));
+  }
+  let dernier = -Infinity;
+  for (let i = 0; i < k; i++) {
+    const texte = o.graduationX(i);
+    if (texte && x(i) - dernier > 52) {
+      svg.append(el("text", { x: x(i), y: H - 6, "text-anchor": i === k - 1 ? "end" : "middle" }, texte));
+      dernier = x(i);
+    }
+  }
+  if (o.bande) {
+    const haut = o.bande.haut.map((v, i) => `${i ? "L" : "M"}${x(i)},${y(v)}`).join("");
+    const bas = o.bande.bas.map((v, i) => `L${x(i)},${y(v)}`).reverse().join("");
+    svg.append(el("path", { d: haut + bas + "Z", fill: o.bande.couleur, opacity: 0.18 }));
+  }
+  if (o.sel != null) svg.append(el("line", { x1: x(o.sel), x2: x(o.sel), y1: m.h, y2: H - m.b, stroke: "var(--axe)", "stroke-width": 1 }));
+  for (const b of o.barres || []) {
+    svg.append(el("line", { x1: x(b.i) , x2: x(b.i), y1: y(b.bas), y2: y(b.haut), stroke: "var(--encre-2)", "stroke-width": 2, "stroke-linecap": "round" }));
+    for (const v of [b.bas, b.haut]) svg.append(el("line", { x1: x(b.i) - 5, x2: x(b.i) + 5, y1: y(v), y2: y(v), stroke: "var(--encre-2)", "stroke-width": 2, "stroke-linecap": "round" }));
+  }
+  for (const s of o.series) {
+    const d = s.valeurs.map((v, i) => `${i ? "L" : "M"}${x(i)},${y(v)}`).join("");
+    svg.append(el("path", { d, fill: "none", stroke: s.couleur, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    if (o.sel != null) svg.append(el("circle", { cx: x(o.sel), cy: y(s.valeurs[o.sel]), r: 4.5, fill: s.couleur, stroke: "var(--surface)", "stroke-width": 2 }));
+  }
+  const reticule = el("line", { y1: m.h, y2: H - m.b, stroke: "var(--encre-2)", "stroke-width": 1, visibility: "hidden" });
+  const zone = el("rect", { x: 0, y: 0, width: L, height: H, fill: "transparent" });
+  if (o.surChoix) zone.style.cursor = "pointer";
+  svg.append(reticule, zone);
+  const bulle = el("div", { class: "bulle" });
+  conteneur.append(svg, bulle);
+  const indice = (ev) => {
+    const r = svg.getBoundingClientRect();
+    const px = ((ev.clientX - r.left) / r.width) * L;
+    return Math.max(0, Math.min(k - 1, Math.round(((px - m.g) / (L - m.g - m.d)) * (k - 1))));
+  };
+  zone.addEventListener("pointermove", (ev) => {
+    const i = indice(ev);
+    reticule.setAttribute("x1", x(i)); reticule.setAttribute("x2", x(i)); reticule.setAttribute("visibility", "visible");
+    bulle.replaceChildren(el("div", { class: "titre" }, o.etiquettes[i]));
+    for (const s of o.series) {
+      bulle.append(el("div", { class: "ligne" }, el("i", { class: "cle", style: `border-color:${s.couleur}` }),
+        el("b", {}, o.format(s.valeurs[i])), el("span", {}, s.nom)));
+    }
+    for (const ligne of (o.complement ? o.complement(i) : [])) bulle.append(el("div", { class: "ligne" }, el("span", {}, ligne)));
+    bulle.style.display = "block";
+    const largeur = bulle.offsetWidth, px = (x(i) / L) * conteneur.clientWidth;
+    bulle.style.left = Math.max(0, Math.min(conteneur.clientWidth - largeur, px + (px > conteneur.clientWidth / 2 ? -largeur - 12 : 12))) + "px";
+  });
+  zone.addEventListener("pointerleave", () => { reticule.setAttribute("visibility", "hidden"); bulle.style.display = "none"; });
+  if (o.surChoix) zone.addEventListener("click", (ev) => o.surChoix(indice(ev)));
+}
+
+function poids() {
+  const brut = ["central", "defavorable", "favorable"].map((s) => +document.getElementById("p-" + s).value);
+  const total = brut.reduce((a, b) => a + b, 0);
+  const w = total > 0 ? brut.map((v) => v / total) : [1, 0, 0];
+  return { central: w[0], defavorable: w[1], favorable: w[2] };
+}
+function ponderee(modele, i, w) {
+  const s = D.scenarios[modele][etat.surcouche];
+  return w.central * s.central[i] + w.defavorable * s.defavorable[i] + w.favorable * s.favorable[i];
+}
+function table(id, entetes, lignesTable) {
+  const t = document.getElementById(id);
+  t.replaceChildren(el("thead", {}, el("tr", {}, ...entetes.map((h) => el("th", { scope: "col" }, h)))),
+    el("tbody", {}, ...lignesTable.map((l) => el("tr", {}, ...l.map((c) => el("td", {}, String(c)))))));
+}
+const choisir = (i) => { etat.i = i; rendre(); };
+const axeArrete = (i) => (D.arretes[i].endsWith("-12") ? D.arretes[i].slice(0, 4) : null);
+const etiquettesArretes = D.arretes.map(dateLongue);
+
+function rendre() {
+  const i = etat.i, a = D.arretes[i];
+  document.getElementById("arrete").value = String(i);
+  document.getElementById("arrete-curseur").value = String(i);
+  for (const e of document.querySelectorAll(".date-arrete")) e.textContent = dateLongue(a);
+
+  const ecl = Object.fromEntries(MODELES.map((mo) => [mo, somme(mo, "ecl", i)]));
+  const encours = Object.fromEntries(MODELES.map((mo) => [mo, somme(mo, "encours", i)]));
+  const pertes = Object.fromEntries(MODELES.map((mo) => [mo, somme(mo, "pertes", i)]));
+  const estimees = somme("logistique", "pertes_estimees", i);
+  const B = D.bootstrap;
+
+  document.getElementById("t-ecart").textContent = pct(B.ecart[i], true);
+  let detail = `Intervalle à 95 % : ${pct(B.bas[i], true)} à ${pct(B.haut[i], true)} en rééchantillonnant le portefeuille.`;
+  const re = D.reestimation.find((r) => r.arrete === a);
+  if (re) detail += ` Avec les modèles réestimés à chaque tirage : ${pct(re.bas, true)} à ${pct(re.haut, true)}, LightGBM plus élevé dans ${pct(re.part_superieur)} des ${re.tirages} tirages.`;
+  if (a === "2007-12") detail += ` Avec des étiquettes arrêtées un an plus tôt : ${pct(D.coupure_stricte["2004-12"], true)}.`;
+  document.getElementById("t-ecart-detail").textContent = detail;
+  document.getElementById("t-log").textContent = musd(ecl.logistique);
+  document.getElementById("t-lgb").textContent = musd(ecl.lightgbm);
+  for (const [id, mo] of [["t-log-detail", "logistique"], ["t-lgb-detail", "lightgbm"]]) {
+    document.getElementById(id).textContent = `${pct(ecl[mo] / encours[mo], false, 2)} de l'encours, ${pct(ecl[mo] / pertes[mo])} des pertes constatées`;
+  }
+  document.getElementById("t-pertes").textContent = musd(pertes.logistique);
+  document.getElementById("t-pertes-detail").textContent = `Minorant : ${musd(estimees)} de plus sont estimés pour les défauts sans perte publiée.`;
+
+  lignes(document.getElementById("g-ecl"), {
+    titre: "Provision par modèle et pertes constatées, par arrêté", etiquettes: etiquettesArretes, log: true, sel: i,
+    series: [
+      { nom: "Pertes constatées", couleur: "var(--observe)", valeurs: D.arretes.map((_, j) => somme("logistique", "pertes", j) / 1e6) },
+      ...MODELES.map((mo) => ({ nom: NOM[mo], couleur: COULEUR[mo], valeurs: D.arretes.map((_, j) => somme(mo, "ecl", j) / 1e6) })),
+    ],
+    format: (v) => nf(v < 10 ? 2 : v < 100 ? 1 : 0).format(v) + " M$", formatAxe: (v) => nf(v < 1 ? 1 : 0).format(v),
+    graduationX: axeArrete, surChoix: choisir,
+  });
+  lignes(document.getElementById("g-ecart"), {
+    titre: "Écart relatif de provision entre LightGBM et la logistique, par arrêté", etiquettes: etiquettesArretes, zero: true, sel: i,
+    series: [{ nom: "Écart relatif", couleur: "var(--lightgbm)", valeurs: B.ecart.map((v) => v * 100) }],
+    bande: { bas: B.bas.map((v) => v * 100), haut: B.haut.map((v) => v * 100), couleur: "var(--lightgbm)" },
+    barres: D.reestimation.map((r) => ({ i: D.arretes.indexOf(r.arrete), bas: r.bas * 100, haut: r.haut * 100 })).filter((b) => b.i >= 0),
+    format: (v) => pct(v / 100, true), formatAxe: (v) => (v > 0 ? "+" : "") + nf(0).format(v).replace("-", "−") + " %",
+    complement: (j) => {
+      const l = [`Intervalle : ${pct(B.bas[j], true)} à ${pct(B.haut[j], true)}`];
+      const r = D.reestimation.find((q) => q.arrete === D.arretes[j]);
+      if (r) l.push(`Modèles réestimés : ${pct(r.bas, true)} à ${pct(r.haut, true)}`);
+      return l;
+    },
+    graduationX: axeArrete, surChoix: choisir,
+  });
+
+  const maxStade = Math.max(...MODELES.flatMap((mo) => STADES.map((st) => D.par_stade[mo][st].ecl[i])), 1);
+  const barres = document.getElementById("barres-stades");
+  barres.replaceChildren();
+  for (const st of STADES) {
+    const paire = el("div", { class: "paire" });
+    for (const mo of MODELES) {
+      const v = D.par_stade[mo][st].ecl[i];
+      paire.append(el("div", { class: "barre", title: `${NOM[mo]}, stade ${st} : ${musd(v)}` },
+        el("i", { style: `width:${(70 * v) / maxStade}%;background:${COULEUR[mo]}` }), millions(v)));
+    }
+    barres.append(el("div", { class: "nom" }, "Stade " + st), paire);
+  }
+  table("table-stades", ["Stade", "Modèle", "Prêts", "Encours", "Provision", "Taux"],
+    STADES.flatMap((st) => MODELES.map((mo) => {
+      const s = D.par_stade[mo][st];
+      return ["Stade " + st, NOM[mo], entier(s.prets[i]), entier(s.encours[i] / 1e6), millions(s.ecl[i]),
+        s.encours[i] > 0 ? pct(s.ecl[i] / s.encours[i], false, 2) : "n.d."];
+    })));
+
+  const w = poids();
+  for (const s of ["central", "defavorable", "favorable"]) document.getElementById("o-" + s).textContent = pct(w[s]);
+  const sc = (mo) => D.scenarios[mo][etat.surcouche];
+  table("table-scenarios", ["Provision (M$)", ...MODELES.map((mo) => NOM[mo])], [
+    ["Macro figée", ...MODELES.map((mo) => millions(ecl[mo]))],
+    ["Scénario central", ...MODELES.map((mo) => millions(sc(mo).central[i]))],
+    ["Scénario défavorable", ...MODELES.map((mo) => millions(sc(mo).defavorable[i]))],
+    ["Scénario favorable", ...MODELES.map((mo) => millions(sc(mo).favorable[i]))],
+    ["Pondérée", ...MODELES.map((mo) => millions(ponderee(mo, i, w)))],
+    ["Écart à la macro figée", ...MODELES.map((mo) => pct(ponderee(mo, i, w) / ecl[mo] - 1, true))],
+  ]);
+  lignes(document.getElementById("g-scenarios"), {
+    titre: "Écart entre la provision pondérée par les scénarios et la provision à macro figée, par arrêté",
+    etiquettes: etiquettesArretes, zero: true, sel: i,
+    series: MODELES.map((mo) => ({ nom: NOM[mo], couleur: COULEUR[mo],
+      valeurs: D.arretes.map((_, j) => (ponderee(mo, j, w) / somme(mo, "ecl", j) - 1) * 100) })),
+    format: (v) => pct(v / 100, true), formatAxe: (v) => (v > 0 ? "+" : "") + nf(0).format(v).replace("-", "−") + " %",
+    graduationX: axeArrete, surChoix: choisir,
+  });
+}
+
+function rendreFixes() {
+  const G = D.lgd;
+  document.getElementById("lgd-min").textContent = entier(G.min_defauts);
+  lignes(document.getElementById("g-lgd"), {
+    titre: "Perte en cas de défaut prévue et réalisée, par année de défaut", etiquettes: G.annees.map((an) => "Défauts de " + an), zero: true,
+    series: [
+      { nom: "Prévue", couleur: "var(--prevue)", valeurs: G.prevue.map((v) => v * 100) },
+      { nom: "Réalisée", couleur: "var(--observe)", valeurs: G.realisee.map((v) => v * 100) },
+    ],
+    format: (v) => nf(1).format(v) + " %", formatAxe: (v) => nf(0).format(v) + " %",
+    complement: (j) => [entier(G.defauts[j]) + " défauts résolus"],
+    graduationX: (j) => String(G.annees[j]),
+  });
+  table("table-generations", ["Génération", "Logistique", "LightGBM", "Pertes", "Avec estimées"],
+    D.generations.map((g) => [g.millesime, millions(g.ecl.logistique), millions(g.ecl.lightgbm),
+      millions(g.pertes), millions(g.pertes + g.pertes_estimees)]));
+  table("table-arretes", ["Arrêté", "Provision logistique", "Provision LightGBM", "Écart", "Intervalle à 95 %", "Pertes constatées"],
+    D.arretes.map((a, j) => [dateCourte(a), millions(somme("logistique", "ecl", j)), millions(somme("lightgbm", "ecl", j)),
+      pct(D.bootstrap.ecart[j], true), `${pct(D.bootstrap.bas[j], true)} à ${pct(D.bootstrap.haut[j], true)}`,
+      millions(somme("logistique", "pertes", j))]));
+}
+
+const liste = document.getElementById("arrete"), curseur = document.getElementById("arrete-curseur");
+D.arretes.forEach((a, j) => liste.append(el("option", { value: j }, dateLongue(a))));
+curseur.max = String(n - 1);
+liste.addEventListener("change", () => choisir(+liste.value));
+curseur.addEventListener("input", () => choisir(+curseur.value));
+for (const s of ["central", "defavorable", "favorable"]) document.getElementById("p-" + s).addEventListener("input", rendre);
+document.getElementById("surcouche").addEventListener("change", (ev) => { etat.surcouche = ev.target.value; rendre(); });
+document.getElementById("p-reinit").addEventListener("click", () => {
+  for (const [s, v] of [["central", 50], ["defavorable", 30], ["favorable", 20]]) document.getElementById("p-" + s).value = v;
+  rendre();
+});
+let attente;
+window.addEventListener("resize", () => { clearTimeout(attente); attente = setTimeout(() => { rendre(); rendreFixes(); }, 120); });
+rendre();
+rendreFixes();
+</script>
+</body>
+</html>

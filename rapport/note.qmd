@@ -124,6 +124,9 @@ Remplacer la régression logistique par du machine learning (LightGBM) dans le
 modèle de PD à 12 mois change-t-il la provision IFRS 9, et dans quel sens en
 période de crise ?
 
+Les mêmes résultats se consultent arrêté par arrêté dans le
+[tableau de bord interactif](tableau.html), où les poids des scénarios se règlent à la main.
+
 **Oui, la provision change, et toujours dans le même sens avant la crise, mais
 beaucoup moins que l'erreur commune aux deux modèles.** Au 31/12/2007, avec les
 mêmes variables, la même survie, le même remboursement anticipé, la même LGD et

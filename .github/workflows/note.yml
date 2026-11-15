@@ -38,6 +38,10 @@ jobs:
           cd rapport && quarto render note.qmd && cd ..
           mkdir -p _site
           mv rapport/note.html _site/index.html
+      - name: Tableau de bord interactif
+        run: |
+          python rapport/tableau_de_bord.py
+          mv rapport/tableau.html _site/tableau.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

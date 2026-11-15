@@ -53,6 +53,7 @@ pipeline: exploration sensibilites double-calcul bootstrap-modeles coupure-stric
 
 note:
 	cd rapport && quarto render note.qmd
+	python rapport/tableau_de_bord.py
 
 tests:
 	pytest -m "not donnees"

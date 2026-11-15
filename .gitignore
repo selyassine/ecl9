@@ -24,6 +24,7 @@ htmlcov/
 
 # Quarto
 rapport/_site/
+rapport/tableau.html
 rapport/.quarto/
 rapport/*_files/
 

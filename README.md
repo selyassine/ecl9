@@ -32,6 +32,8 @@
 
 **Note de provisionnement : <https://selyassine.github.io/ecl9/>**
 
+**Tableau de bord interactif : <https://selyassine.github.io/ecl9/tableau.html>**
+
 **Réponse : oui, LightGBM change la provision, toujours à la hausse avant la
 crise, mais beaucoup moins que l'erreur commune aux deux modèles.** Avec les
 mêmes variables, la même survie, le même remboursement anticipé, la même LGD
