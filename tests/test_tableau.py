@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -50,6 +51,9 @@ def test_page_autonome(tableau, tmp_path):
     assert tableau.BALISE not in page
     debut = page.index('<script id="donnees" type="application/json">') + 45
     json.loads(page[debut : page.index("</script>", debut)])
-    assert "http" not in page.replace("https://github.com/selyassine/ecl9", "").replace(
-        "http://www.w3.org/2000/svg", ""
+    # Seules ressources externes : les polices, avec repli sur les polices du système.
+    externes = set(re.findall(r'(?:src|href)="(https?://[^"]+)"', page))
+    assert all(
+        u.startswith(("https://fonts.g", "https://github.com/selyassine/ecl9")) for u in externes
     )
+    assert "<script src" not in page

@@ -3,223 +3,493 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tableau de bord : provision IFRS 9, logistique ou LightGBM</title>
+<title>ecl9 : provision IFRS 9, logistique ou LightGBM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
+/* Mise en page : un bandeau nuit pour la thèse, puis un récit en sections sur papier froid ;
+   la barre haute porte le seul filtre (l'arrêté), qui pilote toute la page. */
 :root {
   color-scheme: light;
-  --plan: #f9f9f7; --surface: #fcfcfb; --encre: #0b0b0b; --encre-2: #52514e; --discret: #898781;
-  --grille: #e1e0d9; --axe: #c3c2b7; --bord: rgba(11,11,11,0.10);
-  --logistique: #2a78d6; --lightgbm: #eb6834; --prevue: #1baf7a; --observe: #52514e;
+  --fond: #f2f4f7; --surface: #ffffff; --texte: #101a26; --texte-2: #4a5766; --discret: #7b8794;
+  --trait: #dfe4ea; --axe: #c3cbd4; --bord: rgba(16,26,38,0.10); --ombre: 0 1px 2px rgba(16,26,38,0.05), 0 8px 24px rgba(16,26,38,0.06);
+  --logistique: #2a78d6; --lightgbm: #eb6834; --prevue: #1baf7a; --observe: #4a5766;
+  --s1: #b3bfcc; --s2: #6c7f93; --s3: #2f4257; --s1-t: #101a26; --s2-t: #ffffff; --s3-t: #ffffff;
+  --nuit: #0b1724; --nuit-2: #12243a; --nuit-texte: #eef2f6; --nuit-texte-2: #a9b7c6;
+  --titre: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --corps: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --chiffres: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --plan: #0d0d0d; --surface: #1a1a19; --encre: #f0efec; --encre-2: #c3c2b7; --discret: #898781;
-    --grille: #2c2c2a; --axe: #383835; --bord: rgba(255,255,255,0.10);
-    --logistique: #3987e5; --lightgbm: #d95926; --prevue: #199e70; --observe: #c3c2b7;
+    --fond: #08111b; --surface: #101c2a; --texte: #e9eef3; --texte-2: #a9b6c3; --discret: #7b8794;
+    --trait: #1e2d3f; --axe: #31445a; --bord: rgba(255,255,255,0.09); --ombre: 0 1px 2px rgba(0,0,0,0.3);
+    --logistique: #3987e5; --lightgbm: #d95926; --prevue: #199e70; --observe: #a9b6c3;
+    --s1: #d3dbe4; --s2: #8d9eb0; --s3: #54687e; --s1-t: #101a26; --s2-t: #101a26; --s3-t: #ffffff;
   }
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--plan); color: var(--encre);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 56px; }
-h1 { font-size: 26px; line-height: 1.2; margin: 0 0 6px; text-wrap: balance; }
-h2 { font-size: 17px; margin: 0 0 2px; }
-p { margin: 0 0 10px; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 16px/1.55 var(--corps); }
+.cadre { max-width: 1160px; margin: 0 auto; padding-inline: max(16px, 4vw); }
+h1, h2, h3 { font-family: var(--titre); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 4.6vw, 54px); line-height: 1.05; font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: clamp(24px, 3vw, 34px); line-height: 1.12; font-weight: 700; letter-spacing: -0.015em; }
+h3 { font-size: 18px; line-height: 1.25; font-weight: 700; }
+p { margin: 0; }
 a { color: inherit; }
-.chapo { color: var(--encre-2); max-width: 70ch; }
-.liens { display: flex; gap: 16px; flex-wrap: wrap; margin: 10px 0 20px; font-size: 14px; }
-.filtres { position: sticky; top: 0; z-index: 5; background: var(--plan); padding: 10px 0;
-  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid var(--bord); }
-.filtres label { font-weight: 600; }
-select, input[type=range] { accent-color: var(--logistique); font: inherit; }
-select { padding: 5px 8px; border: 1px solid var(--axe); border-radius: 6px; background: var(--surface); color: var(--encre); }
-.filtres input[type=range] { flex: 1 1 180px; max-width: 420px; }
-.grille { display: grid; gap: 16px; margin-top: 16px; }
-.deux { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
-.carte { background: var(--surface); border: 1px solid var(--bord); border-radius: 10px; padding: 16px; min-width: 0; }
-.sous { color: var(--encre-2); font-size: 13.5px; margin-bottom: 10px; }
-.tuiles { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 16px; margin-top: 16px; }
-@media (max-width: 820px) { .tuiles { grid-template-columns: 1fr 1fr; } .tuiles .hero { grid-column: 1 / -1; } }
-.tuile .etiquette { color: var(--encre-2); font-size: 13.5px; }
-.tuile .valeur { font-size: 28px; font-weight: 600; line-height: 1.2; margin: 2px 0; }
-.tuile.hero .valeur { font-size: 52px; }
-.tuile .detail { color: var(--encre-2); font-size: 13px; }
-.cle { display: inline-block; width: 14px; height: 0; border-top: 3px solid; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
-.cle.bande { height: 10px; border: 0; opacity: 0.25; }
-.legende { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13.5px; color: var(--encre-2); margin-bottom: 6px; }
+.surtitre { font: 500 12.5px/1.2 var(--chiffres); letter-spacing: 0.09em; text-transform: uppercase; color: var(--discret); }
+.chiffre { font-family: var(--chiffres); font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--lightgbm); outline-offset: 2px; }
+
+/* Barre haute */
+.barre-haute { position: sticky; top: 0; z-index: 20; background: var(--nuit); color: var(--nuit-texte); border-bottom: 1px solid rgba(255,255,255,0.08); }
+.barre-haute .cadre { display: flex; align-items: center; gap: 20px; height: 56px; }
+.marque { font: 700 20px/1 var(--titre); letter-spacing: -0.02em; text-decoration: none; }
+.marque i { color: var(--lightgbm); font-style: normal; }
+.barre-haute nav { display: flex; gap: 18px; font-size: 14px; flex: 1; min-width: 0; overflow: hidden; }
+.barre-haute nav a { text-decoration: none; color: var(--nuit-texte-2); white-space: nowrap; }
+.barre-haute nav a:hover { color: var(--nuit-texte); }
+.pilote { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.pilote .date { font: 500 13.5px/1 var(--chiffres); min-width: 13ch; text-align: center; }
+.rond { width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.22); background: transparent; color: var(--nuit-texte); cursor: pointer; display: grid; place-items: center; padding: 0; }
+.rond:hover { background: rgba(255,255,255,0.10); }
+.rond.lecture { background: var(--lightgbm); border-color: var(--lightgbm); color: #fff; }
+.rond svg { width: 14px; height: 14px; fill: currentColor; }
+@media (max-width: 860px) { .barre-haute nav { display: none; } }
+
+/* Bandeau d'ouverture : toujours nuit, ses graphiques lisent des jetons redéfinis ici */
+.ouverture { background: radial-gradient(1200px 500px at 85% -10%, #1b3553 0%, transparent 60%), var(--nuit); color: var(--nuit-texte);
+  --texte: #eef2f6; --texte-2: #a9b7c6; --discret: #8494a5; --trait: rgba(255,255,255,0.09); --axe: rgba(255,255,255,0.22);
+  --surface: #0b1724; --lightgbm: #f0703c; --logistique: #4a94ee; --bord: rgba(255,255,255,0.14); }
+.ouverture .cadre { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: clamp(24px, 4vw, 56px); padding-block: clamp(36px, 6vw, 72px) 28px; align-items: center; }
+@media (max-width: 900px) { .ouverture .cadre { grid-template-columns: minmax(0, 1fr); } }
+.ouverture .surtitre { color: var(--nuit-texte-2); margin-bottom: 16px; }
+.reponse { display: flex; align-items: baseline; gap: 18px; margin-top: 28px; flex-wrap: wrap; }
+.reponse .grand { font: 700 clamp(64px, 10vw, 112px)/0.9 var(--titre); letter-spacing: -0.04em; color: var(--lightgbm); }
+.reponse p { max-width: 30ch; color: var(--nuit-texte-2); font-size: 15.5px; }
+.reponse p b { color: var(--nuit-texte); font-weight: 600; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+.bouton { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; font: 500 14.5px/1 var(--corps); text-decoration: none; border: 1px solid rgba(255,255,255,0.25); color: var(--nuit-texte); background: transparent; cursor: pointer; }
+.bouton.plein { background: var(--nuit-texte); color: var(--nuit); border-color: var(--nuit-texte); }
+.bouton:hover { border-color: #fff; }
+.tableau-ouverture { border: 1px solid var(--bord); border-radius: 16px; padding: 18px 18px 12px; background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.01)); }
+.tableau-ouverture h3 { font-size: 16px; }
+.tableau-ouverture .note { color: var(--nuit-texte-2); font-size: 13px; margin: 2px 0 8px; }
+.reperes { list-style: none; margin: 8px 0 0; padding: 0; display: flex; gap: 6px 18px; flex-wrap: wrap; font-size: 12.5px; color: var(--nuit-texte-2); }
+.pastille { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; border: 1px solid currentColor; font: 500 10.5px/1 var(--chiffres); margin-right: 6px; }
+.reperes-clair { color: var(--texte-2); }
+.faits { border-top: 1px solid rgba(255,255,255,0.10); }
+.faits .cadre { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding-block: 20px 24px; }
+@media (max-width: 700px) { .faits .cadre { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.fait b { display: block; font: 700 26px/1.1 var(--titre); letter-spacing: -0.02em; }
+.fait span { font-size: 13px; color: var(--nuit-texte-2); }
+
+/* Sections */
+section.bloc { padding-block: clamp(40px, 6vw, 72px) 0; }
+.tete { display: grid; gap: 10px; margin-bottom: 24px; max-width: 68ch; }
+.tete p { color: var(--texte-2); }
+.grille { display: grid; gap: 16px; }
+.deux { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .deux { grid-template-columns: minmax(0, 1fr); } }
+.carte { background: var(--surface); border: 1px solid var(--bord); border-radius: 16px; padding: 20px; min-width: 0; box-shadow: var(--ombre); }
+.carte > h3 + .sous { margin-top: 4px; }
+.sous { color: var(--texte-2); font-size: 14px; margin-bottom: 12px; }
+
+/* Méthode */
+.chaine { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; counter-reset: etape; }
+.etape { position: relative; padding: 20px 18px 20px 0; counter-increment: etape; }
+.etape + .etape { padding-left: 18px; border-left: 1px solid var(--trait); }
+.etape .icone { width: 46px; height: 46px; border-radius: 12px; background: var(--nuit); display: grid; place-items: center; margin-bottom: 14px; }
+.etape .icone svg { width: 26px; height: 26px; fill: none; stroke: #eef2f6; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.etape .icone svg .a { stroke: #f0703c; }
+.etape .icone svg .b { stroke: #4a94ee; }
+.etape .rang::before { content: "Étape " counter(etape); }
+.etape h3 { margin: 4px 0 6px; font-size: 17px; }
+.etape p { font-size: 14px; color: var(--texte-2); }
+@media (max-width: 900px) {
+  .chaine { grid-template-columns: minmax(0, 1fr); }
+  .etape, .etape + .etape { display: grid; grid-template-columns: 46px minmax(0, 1fr); column-gap: 14px; padding: 14px 0; border-left: 0; }
+  .etape + .etape { border-top: 1px solid var(--trait); }
+  .etape .icone { grid-row: span 3; margin: 0; }
+}
+.formule { margin-top: 8px; padding: 18px 20px; border-radius: 12px; background: var(--nuit); color: #eef2f6; display: flex; gap: 10px 22px; align-items: center; flex-wrap: wrap; }
+.formule .eq { font: 500 clamp(15px, 2vw, 19px)/1.4 var(--chiffres); }
+.formule .eq em { font-style: normal; color: #f0703c; }
+.formule span.legende-eq { font-size: 13.5px; color: #a9b7c6; }
+
+/* Frise des arrêtés */
+.frise { display: flex; gap: 14px; align-items: flex-end; overflow-x: auto; padding: 4px 2px 10px; margin-bottom: 16px; }
+.frise .annee { display: grid; gap: 6px; }
+.frise .annee > span { font: 500 12px/1 var(--chiffres); color: var(--discret); }
+.frise .trimestres { display: flex; gap: 4px; }
+.frise button { font: 500 13px/1 var(--chiffres); padding: 9px 11px; border-radius: 8px; border: 1px solid var(--axe); background: var(--surface); color: var(--texte-2); cursor: pointer; }
+.frise button:hover { border-color: var(--texte-2); }
+.frise button[aria-pressed="true"] { background: var(--nuit); border-color: var(--nuit); color: #fff; }
+
+/* Tuiles */
+.tuiles { display: grid; grid-template-columns: 1.35fr 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+@media (max-width: 900px) { .tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tuiles .maitre { grid-column: 1 / -1; } }
+.tuile { display: grid; gap: 4px; align-content: start; }
+.tuile .etiquette { color: var(--texte-2); font-size: 13.5px; display: flex; align-items: center; gap: 7px; }
+.tuile .valeur { font: 700 30px/1.1 var(--titre); letter-spacing: -0.02em; }
+.tuile.maitre { background: var(--nuit); color: #eef2f6; border-color: var(--nuit); }
+.tuile.maitre .etiquette, .tuile.maitre .detail { color: #a9b7c6; }
+.tuile.maitre .valeur { font-size: 56px; color: #f0703c; }
+.tuile .detail { color: var(--texte-2); font-size: 13px; }
+.mini { height: 34px; margin-top: 6px; }
+.mini svg { display: block; width: 100%; height: 34px; }
+.point { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+
+/* Graphiques */
+.legende { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: 13.5px; color: var(--texte-2); margin-bottom: 6px; }
+.cle { display: inline-block; width: 16px; height: 0; border-top: 3px solid; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.cle.bande { height: 10px; border: 0; opacity: 0.28; }
+.cle.bloc-cle { height: 10px; width: 10px; border: 0; border-radius: 3px; }
 .graphique { position: relative; }
 .graphique svg { display: block; width: 100%; touch-action: pan-y; }
-.graphique text { fill: var(--discret); font-size: 12px; font-variant-numeric: tabular-nums; }
-.bulle { position: absolute; top: 0; pointer-events: none; background: var(--surface); border: 1px solid var(--axe);
-  border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 2px 10px rgba(0,0,0,0.12); white-space: nowrap; display: none; }
-.bulle .titre { color: var(--encre-2); margin-bottom: 4px; }
+.graphique text { fill: var(--discret); font: 11.5px var(--chiffres); }
+.graphique text.repere { fill: var(--texte-2); font-size: 10.5px; }
+@keyframes trace { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.graphique path.trace { stroke-dasharray: 1; animation: trace 1.4s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .graphique path.trace { animation: none; stroke-dasharray: none; } html { scroll-behavior: auto; } }
+.bulle { position: absolute; top: 0; pointer-events: none; background: var(--surface); color: var(--texte); border: 1px solid var(--axe); border-radius: 10px; padding: 9px 11px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); white-space: nowrap; display: none; z-index: 3; }
+.bulle .titre { color: var(--texte-2); margin-bottom: 4px; }
 .bulle .ligne { display: flex; align-items: center; gap: 4px; }
-.bulle b { margin-right: 6px; }
-.bulle span { color: var(--encre-2); }
+.bulle b { margin-right: 6px; font: 500 13px var(--chiffres); }
+.bulle span { color: var(--texte-2); }
+
+/* Stades */
+.segments { display: grid; gap: 10px; margin-bottom: 18px; }
+.segments .rangee { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; align-items: center; font-size: 13.5px; color: var(--texte-2); }
+@media (max-width: 560px) { .segments .rangee { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+.segment { display: flex; gap: 2px; height: 28px; }
+.segment i { display: flex; align-items: center; padding-left: 7px; border-radius: 4px; font: 500 12px/1 var(--chiffres); font-style: normal; min-width: 2px; overflow: visible; white-space: nowrap; transition: flex-basis 0.5s ease; }
+.stades { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .stades { grid-template-columns: minmax(0, 1fr); } }
+.stade { border: 1px solid var(--trait); border-radius: 12px; padding: 16px; display: grid; gap: 10px; align-content: start; }
+.stade header { display: flex; gap: 12px; align-items: center; }
+.stade .jeton { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font: 700 19px/1 var(--titre); flex: none; }
+.stade header p { font-size: 13px; color: var(--texte-2); }
+.stade dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0; font-size: 13.5px; }
+.stade dt { color: var(--texte-2); }
+.stade dd { margin: 0; text-align: right; font: 500 13.5px var(--chiffres); }
+.duo { display: grid; gap: 4px; }
+.barre { display: flex; align-items: center; gap: 8px; font: 500 12.5px var(--chiffres); }
+.barre i { display: block; height: 12px; border-radius: 0 4px 4px 0; min-width: 2px; transition: width 0.5s ease; }
+
+/* Scénarios */
+.curseurs { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px 14px; align-items: center; margin-bottom: 14px; }
+.curseurs output { font: 500 14px var(--chiffres); min-width: 5ch; text-align: right; }
+input[type=range] { accent-color: var(--lightgbm); width: 100%; }
+.choix { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; font-size: 14px; }
+select, .discret { font: inherit; font-size: 14px; padding: 6px 10px; border: 1px solid var(--axe); border-radius: 8px; background: var(--surface); color: var(--texte); }
+.discret { cursor: pointer; }
 .table-defile { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
-th, td { padding: 6px 5px; text-align: right; border-bottom: 1px solid var(--grille); font-variant-numeric: tabular-nums; white-space: nowrap; }
-th:first-child, td:first-child { text-align: left; }
-th { color: var(--encre-2); font-weight: 600; }
-.barres { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; align-items: center; margin: 4px 0 14px; }
-.barres .nom { font-size: 13.5px; color: var(--encre-2); }
-.barres .paire { display: grid; gap: 2px; }
-.barre { display: flex; align-items: center; gap: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
-.barre i { display: block; height: 14px; border-radius: 0 4px 4px 0; min-width: 1px; }
-.curseurs { display: grid; grid-template-columns: auto 1fr auto; gap: 8px 12px; align-items: center; margin-bottom: 12px; }
-.curseurs output { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 4ch; text-align: right; }
-.choix { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
-button { font: inherit; padding: 5px 10px; border: 1px solid var(--axe); border-radius: 6px; background: var(--surface); color: var(--encre); cursor: pointer; }
-details { margin-top: 10px; }
-summary { cursor: pointer; color: var(--encre-2); font-size: 13.5px; }
-.limites li { margin-bottom: 4px; }
-footer { color: var(--encre-2); font-size: 13px; margin-top: 24px; }
+th, td { padding: 7px 6px; text-align: right; border-bottom: 1px solid var(--trait); white-space: nowrap; }
+td { font-family: var(--chiffres); font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; font-family: var(--corps); }
+th { color: var(--texte-2); font-weight: 600; }
+tr.fort td { font-weight: 500; color: var(--texte); border-bottom: 0; }
+
+/* Générations */
+.generations { display: grid; gap: 18px; }
+.generation { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 6px 14px; align-items: center; }
+.generation .an { font: 700 22px/1 var(--titre); grid-row: span 2; }
+.generation .fois { grid-row: span 2; font: 700 22px/1 var(--titre); color: var(--texte-2); text-align: right; }
+.generation .fois small { display: block; font: 400 11.5px var(--corps); }
+.pile { display: flex; gap: 2px; flex: none; }
+.generation .barre { white-space: nowrap; }
+.hachure { background-image: repeating-linear-gradient(135deg, transparent 0 4px, var(--surface) 4px 6px); }
+
+/* Limites */
+.limites { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .limites { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .limites { grid-template-columns: minmax(0, 1fr); } }
+.limite { border-top: 3px solid var(--texte); padding-top: 14px; display: grid; gap: 6px; align-content: start; }
+.limite b { font: 700 28px/1 var(--titre); letter-spacing: -0.02em; }
+.limite p { font-size: 14px; color: var(--texte-2); }
+details { margin-top: 4px; }
+summary { cursor: pointer; color: var(--texte-2); font-size: 14px; }
+footer { margin-top: clamp(40px, 6vw, 72px); background: var(--nuit); color: #a9b7c6; font-size: 13.5px; }
+footer .cadre { padding-block: 26px; display: flex; gap: 12px 28px; flex-wrap: wrap; justify-content: space-between; }
+footer b { color: #eef2f6; }
 </style>
 </head>
 <body>
-<main>
-  <h1>Remplacer la régression logistique par LightGBM change-t-il la provision IFRS 9 ?</h1>
-  <p class="chapo">Résultats du moteur ecl9 sur 450 000 prêts immobiliers Freddie Mac octroyés de 2000 à 2008,
-    arrêtés trimestriels de 2006 à 2010. Les deux modèles de probabilité de défaut sont estimés sur la même
-    période d'avant crise et passent dans le même moteur de calcul. Choisissez un arrêté pour lire tous les
-    chiffres à cette date.</p>
-  <div class="liens">
-    <a href="./">Lire la note complète</a>
-    <a href="https://github.com/selyassine/ecl9">Code et journal des décisions</a>
-  </div>
-
-  <div class="filtres">
-    <label for="arrete">Arrêté</label>
-    <select id="arrete"></select>
-    <input type="range" id="arrete-curseur" min="0" step="1" aria-label="Arrêté">
-  </div>
-
-  <div class="tuiles">
-    <div class="carte tuile hero">
-      <div class="etiquette">Écart de provision, LightGBM par rapport à la logistique</div>
-      <div class="valeur" id="t-ecart"></div>
-      <div class="detail" id="t-ecart-detail"></div>
-    </div>
-    <div class="carte tuile">
-      <div class="etiquette"><span class="cle" style="border-color:var(--logistique)"></span>Provision logistique</div>
-      <div class="valeur" id="t-log"></div>
-      <div class="detail" id="t-log-detail"></div>
-    </div>
-    <div class="carte tuile">
-      <div class="etiquette"><span class="cle" style="border-color:var(--lightgbm)"></span>Provision LightGBM</div>
-      <div class="valeur" id="t-lgb"></div>
-      <div class="detail" id="t-lgb-detail"></div>
-    </div>
-    <div class="carte tuile">
-      <div class="etiquette">Pertes constatées ensuite</div>
-      <div class="valeur" id="t-pertes"></div>
-      <div class="detail" id="t-pertes-detail"></div>
+<header class="barre-haute">
+  <div class="cadre">
+    <a class="marque" href="#haut">ecl<i>9</i></a>
+    <nav aria-label="Sections">
+      <a href="#methode">Méthode</a>
+      <a href="#explorer">Arrêté par arrêté</a>
+      <a href="#stades">Stades</a>
+      <a href="#scenarios">Scénarios</a>
+      <a href="#verite">Épreuve des faits</a>
+      <a href="#limites">Limites</a>
+    </nav>
+    <div class="pilote" role="group" aria-label="Arrêté affiché">
+      <button class="rond" id="precedent" type="button" aria-label="Arrêté précédent"><svg viewBox="0 0 16 16"><path d="M10.5 2.5 5 8l5.5 5.5z"/></svg></button>
+      <span class="date" id="date-pilote" aria-live="polite"></span>
+      <button class="rond" id="suivant" type="button" aria-label="Arrêté suivant"><svg viewBox="0 0 16 16"><path d="M5.5 2.5 11 8l-5.5 5.5z"/></svg></button>
+      <button class="rond lecture" id="lecture" type="button" aria-label="Dérouler la crise"><svg viewBox="0 0 16 16"><path id="lecture-forme" d="M4 2.5v11l9-5.5z"/></svg></button>
     </div>
   </div>
+</header>
 
-  <div class="grille deux">
-    <section class="carte">
-      <h2>Provision et pertes constatées</h2>
-      <div class="sous">Millions de dollars, échelle logarithmique. Macro figée, stades 1 à 3. Les pertes sont
-        celles du même périmètre sur le même horizon.</div>
-      <div class="legende">
-        <span><span class="cle" style="border-color:var(--logistique)"></span>Logistique</span>
-        <span><span class="cle" style="border-color:var(--lightgbm)"></span>LightGBM</span>
-        <span><span class="cle" style="border-color:var(--observe)"></span>Pertes constatées</span>
+<div class="ouverture" id="haut">
+  <div class="cadre">
+    <div>
+      <p class="surtitre">IFRS 9 · Prêts immobiliers Freddie Mac · 2006-2010</p>
+      <h1>Remplacer la régression logistique par LightGBM change‑t‑il la provision ?</h1>
+      <div class="reponse">
+        <span class="grand" id="reponse-ecart"></span>
+        <p><b>Oui, et à la hausse.</b> Au 31 décembre 2007, à la veille de la crise, LightGBM provisionne
+          <span id="reponse-lgb"></span> contre <span id="reponse-log"></span> pour la logistique, sur le même portefeuille.</p>
       </div>
-      <div class="graphique" id="g-ecl"></div>
-    </section>
-    <section class="carte">
-      <h2>Écart entre les deux modèles</h2>
-      <div class="sous">Provision LightGBM rapportée à la provision logistique, en pourcentage. La bande est
-        l'intervalle à 95 % obtenu en rééchantillonnant le portefeuille.</div>
-      <div class="legende">
-        <span><span class="cle" style="border-color:var(--lightgbm)"></span>Écart relatif</span>
-        <span><span class="cle bande" style="background:var(--lightgbm)"></span>Intervalle à 95 %</span>
-        <span><span class="cle" style="border-color:var(--encre-2)"></span>Intervalle avec modèles réestimés</span>
+      <div class="actions">
+        <a class="bouton plein" href="#explorer">Explorer arrêté par arrêté</a>
+        <a class="bouton" href="./">Lire la note complète</a>
+        <a class="bouton" href="https://github.com/selyassine/ecl9">Code source</a>
       </div>
-      <div class="graphique" id="g-ecart"></div>
-    </section>
+    </div>
+    <div class="tableau-ouverture">
+      <h3>L'écart se creuse avant la crise, puis se referme</h3>
+      <p class="note">Provision LightGBM rapportée à la provision logistique. Bande : intervalle à 95 %.</p>
+      <div class="graphique" id="g-ouverture"></div>
+      <ul class="reperes" id="reperes-ouverture"></ul>
+    </div>
   </div>
-
-  <div class="grille deux">
-    <section class="carte">
-      <h2>Provision par stade au <span class="date-arrete"></span></h2>
-      <div class="sous">Millions de dollars, taux en pourcentage de l'encours. Le stade 3 est identique dans les deux modèles : la probabilité de
-        défaut n'y joue plus.</div>
-      <div class="legende">
-        <span><span class="cle" style="border-color:var(--logistique)"></span>Logistique</span>
-        <span><span class="cle" style="border-color:var(--lightgbm)"></span>LightGBM</span>
-      </div>
-      <div class="barres" id="barres-stades"></div>
-      <div class="table-defile"><table id="table-stades"></table></div>
-    </section>
-    <section class="carte">
-      <h2>Scénarios économiques au <span class="date-arrete"></span></h2>
-      <div class="sous">Réglez le poids de chaque scénario. Les poids sont ramenés à 100 %. La courbe donne
-        l'écart entre la provision pondérée et la provision à macro figée.</div>
-      <div class="curseurs">
-        <label for="p-central">Central</label><input type="range" id="p-central" min="0" max="100" value="50"><output id="o-central"></output>
-        <label for="p-defavorable">Défavorable</label><input type="range" id="p-defavorable" min="0" max="100" value="30"><output id="o-defavorable"></output>
-        <label for="p-favorable">Favorable</label><input type="range" id="p-favorable" min="0" max="100" value="20"><output id="o-favorable"></output>
-      </div>
-      <div class="choix">
-        <label for="surcouche">Ajustement manuel</label>
-        <select id="surcouche">
-          <option value="sans">Aucun</option>
-          <option value="nationale">Prix nationaux</option>
-          <option value="etats">Prix par État</option>
-        </select>
-        <button type="button" id="p-reinit">Revenir à 50 / 30 / 20</button>
-      </div>
-      <div class="table-defile"><table id="table-scenarios"></table></div>
-      <div class="legende" style="margin-top:12px">
-        <span><span class="cle" style="border-color:var(--logistique)"></span>Logistique</span>
-        <span><span class="cle" style="border-color:var(--lightgbm)"></span>LightGBM</span>
-      </div>
-      <div class="graphique" id="g-scenarios"></div>
-    </section>
+  <div class="faits">
+    <div class="cadre">
+      <div class="fait"><b>450 000</b><span>prêts octroyés de 2000 à 2008</span></div>
+      <div class="fait"><b>24,8 millions</b><span>de lignes prêt-mois suivies</span></div>
+      <div class="fait"><b id="fait-arretes"></b><span>arrêtés trimestriels calculés</span></div>
+      <div class="fait"><b>56</b><span>décisions de modélisation documentées</span></div>
+    </div>
   </div>
+</div>
 
-  <div class="grille deux">
-    <section class="carte">
-      <h2>Perte en cas de défaut, prévue et réalisée</h2>
-      <div class="sous">Par année de défaut, pondérée par le capital. Le modèle est estimé sur les défauts
-        d'avant 2006. Seules les années comptant au moins <span id="lgd-min"></span> défauts résolus sont tracées.</div>
-      <div class="legende">
-        <span><span class="cle" style="border-color:var(--prevue)"></span>Prévue</span>
-        <span><span class="cle" style="border-color:var(--observe)"></span>Réalisée</span>
+<main class="cadre">
+  <section class="bloc" id="methode">
+    <div class="tete">
+      <p class="surtitre">Méthode</p>
+      <h2>Deux modèles de défaut, un seul moteur de calcul</h2>
+      <p>Tout est identique entre les deux calculs, sauf le modèle qui estime la probabilité de défaut à 12 mois.
+        L'écart de provision ne peut donc venir que de lui.</p>
+    </div>
+    <div class="carte">
+      <div class="chaine">
+        <div class="etape">
+          <div class="icone"><svg viewBox="0 0 26 26"><ellipse cx="13" cy="6" rx="8" ry="3"/><path d="M5 6v7c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M5 13v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7"/></svg></div>
+          <p class="surtitre rang"></p><h3>Données</h3>
+          <p>Historique mensuel de chaque prêt, chômage et prix immobiliers par État.</p>
+        </div>
+        <div class="etape">
+          <div class="icone"><svg viewBox="0 0 26 26"><path d="M3 22h20"/><path class="b" d="M3 19c6 0 8-4 10-8s4-7 10-7"/><path class="a" d="M3 20c4 0 5-1 7-6 1-3 3-3 5-6s4-6 8-6"/></svg></div>
+          <p class="surtitre rang"></p><h3>Défaut à 12 mois</h3>
+          <p>Logistique d'un côté, LightGBM de l'autre, entraînés sur la période d'avant crise.</p>
+        </div>
+        <div class="etape">
+          <div class="icone"><svg viewBox="0 0 26 26"><path d="M3 4v18h20"/><path d="M4 6c5 1 7 6 10 9s5 4 9 4"/><path class="a" d="M9 4v18M15 4v18" stroke-dasharray="1.5 3"/></svg></div>
+          <p class="surtitre rang"></p><h3>Durée de vie</h3>
+          <p>Risque de défaut et de remboursement anticipé, mois après mois jusqu'à l'échéance.</p>
+        </div>
+        <div class="etape">
+          <div class="icone"><svg viewBox="0 0 26 26"><path d="M3 12 13 4l10 8"/><path d="M6 10v12h14V10"/><path class="a" d="M10 16h6"/></svg></div>
+          <p class="surtitre rang"></p><h3>Perte en cas de défaut</h3>
+          <p>Valeur du bien réévaluée par État, perte actualisée sur le délai de résolution.</p>
+        </div>
+        <div class="etape">
+          <div class="icone"><svg viewBox="0 0 26 26"><path d="M19 5H7l7 8-7 8h12"/><circle class="a" cx="21" cy="13" r="1.4"/></svg></div>
+          <p class="surtitre rang"></p><h3>Provision</h3>
+          <p>Stades 1 à 3, trois scénarios économiques pondérés, arrêtés trimestriels.</p>
+        </div>
       </div>
-      <div class="graphique" id="g-lgd"></div>
-    </section>
-    <section class="carte">
-      <h2>Générations 2006 à 2008 jusqu'à maturité</h2>
-      <div class="sous">Provision à maturité de chaque modèle calculée à l'octroi, contre les pertes constatées jusqu'en juin 2026.
-        Millions de dollars.</div>
-      <div class="table-defile"><table id="table-generations"></table></div>
-      <h2 style="margin-top:18px">Ce que le modèle ne sait pas faire</h2>
-      <ul class="limites sous">
-        <li>La survie ne réagit ni au chômage ni aux prix : les scénarios passent surtout par la probabilité de défaut à 12 mois.</li>
-        <li>La sévérité des pertes est sous-estimée de moitié pendant la crise.</li>
-        <li>Le remboursement anticipé est surestimé d'un facteur trois environ en crise.</li>
-        <li>Le passage en stade 2 n'utilise aucun critère qualitatif.</li>
-      </ul>
-    </section>
-  </div>
-
-  <section class="carte" style="margin-top:16px">
-    <h2>Toutes les valeurs par arrêté</h2>
-    <div class="sous">Provisions et pertes en millions de dollars, macro figée.</div>
-    <details>
-      <summary>Afficher le tableau</summary>
-      <div class="table-defile"><table id="table-arretes"></table></div>
-    </details>
+      <div class="formule">
+        <span class="eq">Provision = Σ<sub>mois</sub> <em>PD</em> × LGD × Encours × Actualisation</span>
+        <span class="legende-eq">Seul le terme en orange change d'un modèle à l'autre.</span>
+      </div>
+    </div>
   </section>
 
-  <footer>Yassine. Les chiffres viennent des fichiers de <code>rapport/resultats/</code> du dépôt.
-    Aucune donnée prêt par prêt n'est publiée ici.</footer>
+  <section class="bloc" id="explorer">
+    <div class="tete">
+      <p class="surtitre">Arrêté par arrêté</p>
+      <h2>Vingt arrêtés, de l'avant-crise au creux de 2010</h2>
+      <p>Choisissez un trimestre, ou lancez la lecture en haut de page pour dérouler la crise. Tous les chiffres
+        qui suivent sont ceux de l'arrêté choisi.</p>
+    </div>
+    <div class="frise" id="frise" role="group" aria-label="Choisir un arrêté"></div>
+    <div class="tuiles">
+      <div class="carte tuile maitre">
+        <div class="etiquette">Écart de provision au <span class="date-arrete"></span></div>
+        <div class="valeur" id="t-ecart"></div>
+        <div class="detail" id="t-ecart-detail"></div>
+      </div>
+      <div class="carte tuile">
+        <div class="etiquette"><span class="point" style="background:var(--logistique)"></span>Provision logistique</div>
+        <div class="valeur" id="t-log"></div>
+        <div class="detail" id="t-log-detail"></div>
+        <div class="mini" id="m-log"></div>
+      </div>
+      <div class="carte tuile">
+        <div class="etiquette"><span class="point" style="background:var(--lightgbm)"></span>Provision LightGBM</div>
+        <div class="valeur" id="t-lgb"></div>
+        <div class="detail" id="t-lgb-detail"></div>
+        <div class="mini" id="m-lgb"></div>
+      </div>
+      <div class="carte tuile">
+        <div class="etiquette"><span class="point" style="background:var(--observe)"></span>Pertes constatées ensuite</div>
+        <div class="valeur" id="t-pertes"></div>
+        <div class="detail" id="t-pertes-detail"></div>
+        <div class="mini" id="m-pertes"></div>
+      </div>
+    </div>
+    <div class="grille deux">
+      <div class="carte">
+        <h3>Provision et pertes constatées</h3>
+        <div class="sous">Millions de dollars, échelle logarithmique. Macro figée, stades 1 à 3. Pertes du même périmètre sur le même horizon.</div>
+        <div class="legende">
+          <span><span class="cle" style="border-color:var(--logistique)"></span>Logistique</span>
+          <span><span class="cle" style="border-color:var(--lightgbm)"></span>LightGBM</span>
+          <span><span class="cle" style="border-color:var(--observe)"></span>Pertes constatées</span>
+        </div>
+        <div class="graphique" id="g-ecl"></div>
+        <ul class="reperes reperes-clair" id="reperes-ecl"></ul>
+      </div>
+      <div class="carte">
+        <h3>Écart entre les deux modèles</h3>
+        <div class="sous">Provision LightGBM rapportée à la provision logistique. La bande vient du rééchantillonnage du portefeuille, les barres de la réestimation des modèles.</div>
+        <div class="legende">
+          <span><span class="cle" style="border-color:var(--lightgbm)"></span>Écart relatif</span>
+          <span><span class="cle bande" style="background:var(--lightgbm)"></span>Intervalle à 95 %</span>
+          <span><span class="cle" style="border-color:var(--texte-2)"></span>Modèles réestimés</span>
+        </div>
+        <div class="graphique" id="g-ecart"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloc" id="stades">
+    <div class="tete">
+      <p class="surtitre">Stades IFRS 9</p>
+      <h2>Où se loge la provision au <span class="date-arrete"></span></h2>
+      <p>Presque tout l'encours est sain, mais la provision se concentre sur la petite part de prêts dégradés
+        ou en défaut. C'est dans les stades 1 et 2 que le choix du modèle pèse.</p>
+    </div>
+    <div class="carte">
+      <div class="legende">
+        <span><span class="cle bloc-cle" style="background:var(--s1)"></span>Stade 1, sain</span>
+        <span><span class="cle bloc-cle" style="background:var(--s2)"></span>Stade 2, dégradé</span>
+        <span><span class="cle bloc-cle" style="background:var(--s3)"></span>Stade 3, en défaut</span>
+      </div>
+      <div class="segments" id="segments"></div>
+      <div class="stades" id="cartes-stades"></div>
+    </div>
+  </section>
+
+  <section class="bloc" id="scenarios">
+    <div class="tete">
+      <p class="surtitre">Scénarios économiques</p>
+      <h2>Faites varier le poids des scénarios</h2>
+      <p>La provision publiée pondère trois trajectoires de chômage et de prix immobiliers. Déplacez les curseurs
+        pour voir ce que deviendrait la provision avec un autre jugement sur l'avenir.</p>
+    </div>
+    <div class="grille deux">
+      <div class="carte">
+        <h3>Pondérations au <span class="date-arrete"></span></h3>
+        <div class="sous">Les poids sont ramenés à 100 %.</div>
+        <div class="curseurs">
+          <label for="p-central">Central</label><input type="range" id="p-central" min="0" max="100" value="50"><output id="o-central"></output>
+          <label for="p-defavorable">Défavorable</label><input type="range" id="p-defavorable" min="0" max="100" value="30"><output id="o-defavorable"></output>
+          <label for="p-favorable">Favorable</label><input type="range" id="p-favorable" min="0" max="100" value="20"><output id="o-favorable"></output>
+        </div>
+        <div class="choix">
+          <label for="surcouche">Ajustement manuel</label>
+          <select id="surcouche">
+            <option value="sans">Aucun</option>
+            <option value="nationale">Prix nationaux</option>
+            <option value="etats">Prix par État</option>
+          </select>
+          <button type="button" class="discret" id="p-reinit">Revenir à 50 / 30 / 20</button>
+        </div>
+        <div class="table-defile"><table id="table-scenarios"></table></div>
+      </div>
+      <div class="carte">
+        <h3>Effet des scénarios sur la provision</h3>
+        <div class="sous">Écart entre la provision pondérée et la provision à macro figée, avec les poids choisis.</div>
+        <div class="legende">
+          <span><span class="cle" style="border-color:var(--logistique)"></span>Logistique</span>
+          <span><span class="cle" style="border-color:var(--lightgbm)"></span>LightGBM</span>
+        </div>
+        <div class="graphique" id="g-scenarios"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloc" id="verite">
+    <div class="tete">
+      <p class="surtitre">Épreuve des faits</p>
+      <h2>Ce que les modèles n'avaient pas vu venir</h2>
+      <p>Un modèle estimé avant la crise ne peut pas la prévoir. Ces deux vues mesurent l'ampleur de ce qui a manqué,
+        sans l'atténuer.</p>
+    </div>
+    <div class="grille deux">
+      <div class="carte">
+        <h3>Provision à l'octroi contre pertes réelles</h3>
+        <div class="sous">Générations 2006 à 2008, millions de dollars. Provision LightGBM à maturité calculée à l'octroi, pertes constatées jusqu'en juin 2026.</div>
+        <div class="legende">
+          <span><span class="cle bloc-cle" style="background:var(--lightgbm)"></span>Provision à l'octroi</span>
+          <span><span class="cle bloc-cle" style="background:var(--observe)"></span>Pertes constatées</span>
+          <span><span class="cle bloc-cle hachure" style="background-color:var(--observe)"></span>Pertes estimées, défauts non résolus</span>
+        </div>
+        <div class="generations" id="generations"></div>
+      </div>
+      <div class="carte">
+        <h3>Perte en cas de défaut, prévue et réalisée</h3>
+        <div class="sous">Par année de défaut, pondérée par le capital. Modèle estimé sur les défauts d'avant 2006. Années comptant au moins <span id="lgd-min"></span> défauts résolus.</div>
+        <div class="legende">
+          <span><span class="cle" style="border-color:var(--prevue)"></span>Prévue</span>
+          <span><span class="cle" style="border-color:var(--observe)"></span>Réalisée</span>
+        </div>
+        <div class="graphique" id="g-lgd"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloc" id="limites">
+    <div class="tete">
+      <p class="surtitre">Limites assumées</p>
+      <h2>Ce que le moteur ne sait pas faire</h2>
+      <p>Chaque limite est mesurée et documentée dans le journal des décisions du dépôt.</p>
+    </div>
+    <div class="limites">
+      <div class="limite"><b>31 % contre 55 %</b><h3>Sévérité des pertes</h3><p>La sévérité prévue reste à peu près la moitié de celle constatée pendant la crise.</p></div>
+      <div class="limite"><b>× 3</b><h3>Remboursement anticipé</h3><p>Il est surestimé d'un facteur trois environ quand le crédit se ferme.</p></div>
+      <div class="limite"><b>0</b><h3>Sensibilité de la survie</h3><p>La survie ne réagit ni au chômage ni aux prix : les scénarios passent par le défaut à 12 mois.</p></div>
+      <div class="limite"><b>Quantitatif</b><h3>Passage en stade 2</h3><p>Il repose sur le retard et la hausse de la probabilité de défaut, sans critère qualitatif.</p></div>
+    </div>
+    <div class="carte" style="margin-top:24px">
+      <h3>Toutes les valeurs par arrêté</h3>
+      <div class="sous">Provisions et pertes en millions de dollars, macro figée.</div>
+      <details>
+        <summary>Afficher le tableau</summary>
+        <div class="table-defile"><table id="table-arretes"></table></div>
+      </details>
+    </div>
+  </section>
 </main>
+
+<footer>
+  <div class="cadre">
+    <span><b>ecl9</b> · Yassine · moteur de provisionnement IFRS 9</span>
+    <span>Chiffres issus des résultats versionnés du dépôt. Aucune donnée prêt par prêt n'est publiée ici.</span>
+  </div>
+</footer>
 
 <script id="donnees" type="application/json">__DONNEES__</script>
 <script>
@@ -229,19 +499,29 @@ const MODELES = ["logistique", "lightgbm"];
 const NOM = { logistique: "Logistique", lightgbm: "LightGBM" };
 const COULEUR = { logistique: "var(--logistique)", lightgbm: "var(--lightgbm)" };
 const STADES = ["1", "2", "3"];
+const NOM_STADE = { 1: "Sain", 2: "Dégradé", 3: "En défaut" };
+const HORIZON = { 1: "Pertes attendues à 12 mois", 2: "Pertes attendues jusqu'à l'échéance", 3: "Défaut avéré, perte à terminaison" };
 const MOIS = { "03": "mars", "06": "juin", "09": "septembre", "12": "décembre" };
 const FIN = { "03": "31", "06": "30", "09": "30", "12": "31" };
+/* Repères placés sur l'axe des arrêtés (position en trimestres depuis le premier arrêté, mars 2006). */
+const REPERES = [
+  { pos: 5.6, texte: "Août 2007 : gel du marché interbancaire" },
+  { pos: 9.85, texte: "Septembre 2008 : faillite de Lehman Brothers" },
+  { pos: 14.35, texte: "Octobre 2009 : pic du chômage américain" },
+];
 const n = D.arretes.length;
-const etat = { i: Math.max(0, D.arretes.indexOf("2007-12")), surcouche: "sans" };
+const etat = { i: Math.max(0, D.arretes.indexOf("2007-12")), surcouche: "sans", lecture: null, premier: true };
+const sansMouvement = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const SVG = "http://www.w3.org/2000/svg";
 function el(nom, attributs, ...enfants) {
-  const svg = ["svg", "g", "path", "line", "rect", "circle", "text"].includes(nom);
+  const svg = ["svg", "g", "path", "line", "rect", "circle", "text", "defs", "linearGradient", "stop"].includes(nom);
   const e = svg ? document.createElementNS(SVG, nom) : document.createElement(nom);
   for (const [k, v] of Object.entries(attributs || {})) e.setAttribute(k, v);
   for (const c of enfants) e.append(c);
   return e;
 }
+const id = (x) => document.getElementById(x);
 const nf = (d) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
 const entier = (v) => nf(0).format(v);
 function millions(v) { const m = v / 1e6; return nf(m < 10 ? 2 : m < 100 ? 1 : 0).format(m); }
@@ -250,12 +530,29 @@ function pct(v, signe, d = 0) { return (signe && v > 0 ? "+" : "") + nf(d).forma
 const dateLongue = (a) => { const [an, m] = a.split("-"); return FIN[m] + " " + MOIS[m] + " " + an; };
 const dateCourte = (a) => { const [an, m] = a.split("-"); return "T" + (+m / 3) + " " + an; };
 const somme = (modele, champ, i) => STADES.reduce((s, st) => s + D.par_stade[modele][st][champ][i], 0);
+const serie = (modele, champ) => D.arretes.map((_, j) => somme(modele, champ, j));
+
+/* Fait glisser un nombre affiché vers sa nouvelle valeur. */
+function animer(cible, valeur, format) {
+  const depart = cible._v;
+  cible._v = valeur;
+  if (depart == null || sansMouvement || depart === valeur) { cible.textContent = format(valeur); return; }
+  const t0 = performance.now(), duree = 380;
+  cancelAnimationFrame(cible._f);
+  const pas = (t) => {
+    const p = Math.min(1, (t - t0) / duree), q = 1 - (1 - p) ** 3;
+    cible.textContent = format(depart + (valeur - depart) * q);
+    if (p < 1) cible._f = requestAnimationFrame(pas);
+  };
+  cible._f = requestAnimationFrame(pas);
+}
 
 /* Graphique en lignes : réticule, bulle listant toutes les séries, clic pour choisir l'abscisse. */
+let compteur = 0;
 function lignes(conteneur, o) {
   conteneur.replaceChildren();
-  const L = Math.max(280, conteneur.clientWidth), H = 270;
-  const m = { g: 46, d: 14, h: 10, b: 26 };
+  const L = Math.max(280, conteneur.clientWidth), H = o.hauteur || 280;
+  const m = { g: 50, d: 14, h: o.reperes ? 24 : 10, b: 26 };
   const k = o.etiquettes.length;
   const x = (i) => m.g + (k === 1 ? 0 : (i * (L - m.g - m.d)) / (k - 1));
   const tout = o.series.flatMap((s) => s.valeurs).concat(o.bande ? o.bande.bas.concat(o.bande.haut) : [])
@@ -276,7 +573,7 @@ function lignes(conteneur, o) {
   const y = (v) => m.h + (H - m.h - m.b) * (1 - (t(v) - t(min)) / (t(max) - t(min)));
   const svg = el("svg", { viewBox: `0 0 ${L} ${H}`, height: H, role: "img", "aria-label": o.titre });
   for (const g of graduations) {
-    svg.append(el("line", { x1: m.g, x2: L - m.d, y1: y(g), y2: y(g), stroke: o.zero && g === 0 ? "var(--axe)" : "var(--grille)", "stroke-width": 1 }));
+    svg.append(el("line", { x1: m.g, x2: L - m.d, y1: y(g), y2: y(g), stroke: o.zero && g === 0 ? "var(--axe)" : "var(--trait)", "stroke-width": 1 }));
     svg.append(el("text", { x: m.g - 8, y: y(g) + 4, "text-anchor": "end" }, o.formatAxe(g)));
   }
   let dernier = -Infinity;
@@ -287,22 +584,35 @@ function lignes(conteneur, o) {
       dernier = x(i);
     }
   }
+  (o.reperes || []).forEach((r, j) => {
+    svg.append(el("line", { x1: x(r.pos), x2: x(r.pos), y1: m.h, y2: H - m.b, stroke: "var(--axe)", "stroke-width": 1 }));
+    svg.append(el("circle", { cx: x(r.pos), cy: 10, r: 8, fill: "var(--surface)", stroke: "var(--texte-2)", "stroke-width": 1 }));
+    svg.append(el("text", { x: x(r.pos), y: 13.5, "text-anchor": "middle", class: "repere" }, String(j + 1)));
+  });
   if (o.bande) {
     const haut = o.bande.haut.map((v, i) => `${i ? "L" : "M"}${x(i)},${y(v)}`).join("");
     const bas = o.bande.bas.map((v, i) => `L${x(i)},${y(v)}`).reverse().join("");
-    svg.append(el("path", { d: haut + bas + "Z", fill: o.bande.couleur, opacity: 0.18 }));
+    svg.append(el("path", { d: haut + bas + "Z", fill: o.bande.couleur, opacity: 0.22 }));
   }
-  if (o.sel != null) svg.append(el("line", { x1: x(o.sel), x2: x(o.sel), y1: m.h, y2: H - m.b, stroke: "var(--axe)", "stroke-width": 1 }));
+  if (o.sel != null) svg.append(el("line", { x1: x(o.sel), x2: x(o.sel), y1: m.h, y2: H - m.b, stroke: "var(--texte-2)", "stroke-width": 1 }));
   for (const b of o.barres || []) {
-    svg.append(el("line", { x1: x(b.i) , x2: x(b.i), y1: y(b.bas), y2: y(b.haut), stroke: "var(--encre-2)", "stroke-width": 2, "stroke-linecap": "round" }));
-    for (const v of [b.bas, b.haut]) svg.append(el("line", { x1: x(b.i) - 5, x2: x(b.i) + 5, y1: y(v), y2: y(v), stroke: "var(--encre-2)", "stroke-width": 2, "stroke-linecap": "round" }));
+    svg.append(el("line", { x1: x(b.i), x2: x(b.i), y1: y(b.bas), y2: y(b.haut), stroke: "var(--texte-2)", "stroke-width": 2, "stroke-linecap": "round" }));
+    for (const v of [b.bas, b.haut]) svg.append(el("line", { x1: x(b.i) - 5, x2: x(b.i) + 5, y1: y(v), y2: y(v), stroke: "var(--texte-2)", "stroke-width": 2, "stroke-linecap": "round" }));
   }
   for (const s of o.series) {
     const d = s.valeurs.map((v, i) => `${i ? "L" : "M"}${x(i)},${y(v)}`).join("");
-    svg.append(el("path", { d, fill: "none", stroke: s.couleur, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
-    if (o.sel != null) svg.append(el("circle", { cx: x(o.sel), cy: y(s.valeurs[o.sel]), r: 4.5, fill: s.couleur, stroke: "var(--surface)", "stroke-width": 2 }));
+    if (s.aire) {
+      const gid = "degrade" + compteur++;
+      svg.append(el("defs", {}, el("linearGradient", { id: gid, x1: 0, x2: 0, y1: 0, y2: 1 },
+        el("stop", { offset: "0", "stop-color": s.couleur, "stop-opacity": 0.3 }), el("stop", { offset: "1", "stop-color": s.couleur, "stop-opacity": 0 }))));
+      svg.append(el("path", { d: `${d}L${x(k - 1)},${y(o.zero ? 0 : min)}L${x(0)},${y(o.zero ? 0 : min)}Z`, fill: `url(#${gid})` }));
+    }
+    const trait = el("path", { d, fill: "none", stroke: s.couleur, "stroke-width": s.epais || 2, "stroke-linejoin": "round", "stroke-linecap": "round" });
+    if (o.trace && !sansMouvement) { trait.setAttribute("pathLength", 1); trait.setAttribute("class", "trace"); }
+    svg.append(trait);
+    if (o.sel != null) svg.append(el("circle", { cx: x(o.sel), cy: y(s.valeurs[o.sel]), r: 5, fill: s.couleur, stroke: "var(--surface)", "stroke-width": 2 }));
   }
-  const reticule = el("line", { y1: m.h, y2: H - m.b, stroke: "var(--encre-2)", "stroke-width": 1, visibility: "hidden" });
+  const reticule = el("line", { y1: m.h, y2: H - m.b, stroke: "var(--texte-2)", "stroke-width": 1, visibility: "hidden" });
   const zone = el("rect", { x: 0, y: 0, width: L, height: H, fill: "transparent" });
   if (o.surChoix) zone.style.cursor = "pointer";
   svg.append(reticule, zone);
@@ -330,8 +640,19 @@ function lignes(conteneur, o) {
   if (o.surChoix) zone.addEventListener("click", (ev) => o.surChoix(indice(ev)));
 }
 
+/* Courbe miniature d'une tuile : la série entière, le point de l'arrêté choisi mis en avant. */
+function mini(conteneur, valeurs, couleur, i) {
+  const L = 200, H = 34, lg = valeurs.map((v) => Math.log10(Math.max(v, 1)));
+  const a = Math.min(...lg), b = Math.max(...lg);
+  const x = (j) => 4 + (j * (L - 8)) / (valeurs.length - 1), y = (v) => H - 5 - ((v - a) / (b - a || 1)) * (H - 10);
+  const d = lg.map((v, j) => `${j ? "L" : "M"}${x(j)},${y(v)}`).join("");
+  conteneur.replaceChildren(el("svg", { viewBox: `0 0 ${L} ${H}`, preserveAspectRatio: "none", "aria-hidden": "true" },
+    el("path", { d, fill: "none", stroke: "var(--axe)", "stroke-width": 1.5, "vector-effect": "non-scaling-stroke" }),
+    el("path", { d: lg.slice(0, i + 1).map((v, j) => `${j ? "L" : "M"}${x(j)},${y(v)}`).join(""), fill: "none", stroke: couleur, "stroke-width": 2, "vector-effect": "non-scaling-stroke" })));
+}
+
 function poids() {
-  const brut = ["central", "defavorable", "favorable"].map((s) => +document.getElementById("p-" + s).value);
+  const brut = ["central", "defavorable", "favorable"].map((s) => +id("p-" + s).value);
   const total = brut.reduce((a, b) => a + b, 0);
   const w = total > 0 ? brut.map((v) => v / total) : [1, 0, 0];
   return { central: w[0], defavorable: w[1], favorable: w[2] };
@@ -340,110 +661,139 @@ function ponderee(modele, i, w) {
   const s = D.scenarios[modele][etat.surcouche];
   return w.central * s.central[i] + w.defavorable * s.defavorable[i] + w.favorable * s.favorable[i];
 }
-function table(id, entetes, lignesTable) {
-  const t = document.getElementById(id);
-  t.replaceChildren(el("thead", {}, el("tr", {}, ...entetes.map((h) => el("th", { scope: "col" }, h)))),
-    el("tbody", {}, ...lignesTable.map((l) => el("tr", {}, ...l.map((c) => el("td", {}, String(c)))))));
+function table(cible, entetes, lignesTable, fort) {
+  id(cible).replaceChildren(el("thead", {}, el("tr", {}, ...entetes.map((h) => el("th", { scope: "col" }, h)))),
+    el("tbody", {}, ...lignesTable.map((l, j) => el("tr", fort != null && j >= fort ? { class: "fort" } : {}, ...l.map((c) => el("td", {}, String(c)))))));
 }
-const choisir = (i) => { etat.i = i; rendre(); };
+function arreter() { clearInterval(etat.lecture); etat.lecture = null; id("lecture-forme").setAttribute("d", "M4 2.5v11l9-5.5z"); id("lecture").setAttribute("aria-label", "Dérouler la crise"); }
+const choisir = (i, garder) => { if (!garder) arreter(); etat.i = (i + n) % n; rendre(); };
 const axeArrete = (i) => (D.arretes[i].endsWith("-12") ? D.arretes[i].slice(0, 4) : null);
 const etiquettesArretes = D.arretes.map(dateLongue);
+const axePct = (v) => (v > 0 ? "+" : "") + nf(0).format(v).replace("-", "−") + " %";
+
+function segment(parts, titre) {
+  const total = parts.reduce((a, p) => a + p.v, 0) || 1;
+  const barre = el("div", { class: "segment", role: "img", "aria-label": titre + " : " + parts.map((p) => `stade ${p.st} ${pct(p.v / total, false, 1)}`).join(", ") });
+  for (const p of parts) {
+    const part = p.v / total;
+    if (part <= 0) continue;
+    barre.append(el("i", { style: `flex:0 0 calc(${part * 100}% - 2px);background:var(--s${p.st});color:var(--s${p.st}-t)`, title: `Stade ${p.st} : ${pct(part, false, 1)}` }, part >= 0.09 ? pct(part) : ""));
+  }
+  return barre;
+}
 
 function rendre() {
-  const i = etat.i, a = D.arretes[i];
-  document.getElementById("arrete").value = String(i);
-  document.getElementById("arrete-curseur").value = String(i);
+  const i = etat.i, a = D.arretes[i], B = D.bootstrap;
+  id("date-pilote").textContent = dateCourte(a);
   for (const e of document.querySelectorAll(".date-arrete")) e.textContent = dateLongue(a);
+  for (const b of id("frise").querySelectorAll("button")) b.setAttribute("aria-pressed", String(+b.dataset.i === i));
 
   const ecl = Object.fromEntries(MODELES.map((mo) => [mo, somme(mo, "ecl", i)]));
   const encours = Object.fromEntries(MODELES.map((mo) => [mo, somme(mo, "encours", i)]));
   const pertes = Object.fromEntries(MODELES.map((mo) => [mo, somme(mo, "pertes", i)]));
   const estimees = somme("logistique", "pertes_estimees", i);
-  const B = D.bootstrap;
 
-  document.getElementById("t-ecart").textContent = pct(B.ecart[i], true);
+  animer(id("t-ecart"), B.ecart[i], (v) => pct(v, true));
   let detail = `Intervalle à 95 % : ${pct(B.bas[i], true)} à ${pct(B.haut[i], true)} en rééchantillonnant le portefeuille.`;
   const re = D.reestimation.find((r) => r.arrete === a);
   if (re) detail += ` Avec les modèles réestimés à chaque tirage : ${pct(re.bas, true)} à ${pct(re.haut, true)}, LightGBM plus élevé dans ${pct(re.part_superieur)} des ${re.tirages} tirages.`;
   if (a === "2007-12") detail += ` Avec des étiquettes arrêtées un an plus tôt : ${pct(D.coupure_stricte["2004-12"], true)}.`;
-  document.getElementById("t-ecart-detail").textContent = detail;
-  document.getElementById("t-log").textContent = musd(ecl.logistique);
-  document.getElementById("t-lgb").textContent = musd(ecl.lightgbm);
-  for (const [id, mo] of [["t-log-detail", "logistique"], ["t-lgb-detail", "lightgbm"]]) {
-    document.getElementById(id).textContent = `${pct(ecl[mo] / encours[mo], false, 2)} de l'encours, ${pct(ecl[mo] / pertes[mo])} des pertes constatées`;
+  id("t-ecart-detail").textContent = detail;
+  animer(id("t-log"), ecl.logistique, musd);
+  animer(id("t-lgb"), ecl.lightgbm, musd);
+  animer(id("t-pertes"), pertes.logistique, musd);
+  for (const [cible, mo] of [["t-log-detail", "logistique"], ["t-lgb-detail", "lightgbm"]]) {
+    id(cible).textContent = `${pct(ecl[mo] / encours[mo], false, 2)} de l'encours, ${pct(ecl[mo] / pertes[mo])} des pertes constatées`;
   }
-  document.getElementById("t-pertes").textContent = musd(pertes.logistique);
-  document.getElementById("t-pertes-detail").textContent = `Minorant : ${musd(estimees)} de plus sont estimés pour les défauts sans perte publiée.`;
+  id("t-pertes-detail").textContent = `Minorant : ${musd(estimees)} de plus sont estimés pour les défauts sans perte publiée.`;
+  mini(id("m-log"), serie("logistique", "ecl"), "var(--logistique)", i);
+  mini(id("m-lgb"), serie("lightgbm", "ecl"), "var(--lightgbm)", i);
+  mini(id("m-pertes"), serie("logistique", "pertes"), "var(--observe)", i);
 
-  lignes(document.getElementById("g-ecl"), {
-    titre: "Provision par modèle et pertes constatées, par arrêté", etiquettes: etiquettesArretes, log: true, sel: i,
+  const ecartSerie = { nom: "Écart relatif", couleur: "var(--lightgbm)", valeurs: B.ecart.map((v) => v * 100) };
+  const bande = { bas: B.bas.map((v) => v * 100), haut: B.haut.map((v) => v * 100), couleur: "var(--lightgbm)" };
+  const complementEcart = (j) => {
+    const l = [`Intervalle : ${pct(B.bas[j], true)} à ${pct(B.haut[j], true)}`];
+    const r = D.reestimation.find((q) => q.arrete === D.arretes[j]);
+    if (r) l.push(`Modèles réestimés : ${pct(r.bas, true)} à ${pct(r.haut, true)}`);
+    return l;
+  };
+  lignes(id("g-ouverture"), {
+    titre: "Écart relatif de provision entre LightGBM et la logistique, par arrêté", etiquettes: etiquettesArretes, zero: true, sel: i,
+    hauteur: 300, trace: etat.premier, reperes: REPERES, series: [{ ...ecartSerie, aire: true, epais: 2.5 }], bande,
+    format: (v) => pct(v / 100, true), formatAxe: axePct, complement: complementEcart, graduationX: axeArrete, surChoix: choisir,
+  });
+  lignes(id("g-ecl"), {
+    titre: "Provision par modèle et pertes constatées, par arrêté", etiquettes: etiquettesArretes, log: true, sel: i, reperes: REPERES, trace: etat.premier,
     series: [
-      { nom: "Pertes constatées", couleur: "var(--observe)", valeurs: D.arretes.map((_, j) => somme("logistique", "pertes", j) / 1e6) },
-      ...MODELES.map((mo) => ({ nom: NOM[mo], couleur: COULEUR[mo], valeurs: D.arretes.map((_, j) => somme(mo, "ecl", j) / 1e6) })),
+      { nom: "Pertes constatées", couleur: "var(--observe)", valeurs: serie("logistique", "pertes").map((v) => v / 1e6) },
+      ...MODELES.map((mo) => ({ nom: NOM[mo], couleur: COULEUR[mo], valeurs: serie(mo, "ecl").map((v) => v / 1e6) })),
     ],
     format: (v) => nf(v < 10 ? 2 : v < 100 ? 1 : 0).format(v) + " M$", formatAxe: (v) => nf(v < 1 ? 1 : 0).format(v),
     graduationX: axeArrete, surChoix: choisir,
   });
-  lignes(document.getElementById("g-ecart"), {
+  lignes(id("g-ecart"), {
     titre: "Écart relatif de provision entre LightGBM et la logistique, par arrêté", etiquettes: etiquettesArretes, zero: true, sel: i,
-    series: [{ nom: "Écart relatif", couleur: "var(--lightgbm)", valeurs: B.ecart.map((v) => v * 100) }],
-    bande: { bas: B.bas.map((v) => v * 100), haut: B.haut.map((v) => v * 100), couleur: "var(--lightgbm)" },
+    series: [ecartSerie], bande,
     barres: D.reestimation.map((r) => ({ i: D.arretes.indexOf(r.arrete), bas: r.bas * 100, haut: r.haut * 100 })).filter((b) => b.i >= 0),
-    format: (v) => pct(v / 100, true), formatAxe: (v) => (v > 0 ? "+" : "") + nf(0).format(v).replace("-", "−") + " %",
-    complement: (j) => {
-      const l = [`Intervalle : ${pct(B.bas[j], true)} à ${pct(B.haut[j], true)}`];
-      const r = D.reestimation.find((q) => q.arrete === D.arretes[j]);
-      if (r) l.push(`Modèles réestimés : ${pct(r.bas, true)} à ${pct(r.haut, true)}`);
-      return l;
-    },
-    graduationX: axeArrete, surChoix: choisir,
+    format: (v) => pct(v / 100, true), formatAxe: axePct, complement: complementEcart, graduationX: axeArrete, surChoix: choisir,
   });
 
-  const maxStade = Math.max(...MODELES.flatMap((mo) => STADES.map((st) => D.par_stade[mo][st].ecl[i])), 1);
-  const barres = document.getElementById("barres-stades");
-  barres.replaceChildren();
-  for (const st of STADES) {
-    const paire = el("div", { class: "paire" });
+  /* Stades */
+  const P = D.par_stade;
+  id("segments").replaceChildren(
+    el("div", { class: "rangee" }, "Encours", segment(STADES.map((st) => ({ st, v: P.lightgbm[st].encours[i] })), "Répartition de l'encours")),
+    el("div", { class: "rangee" }, "Provision logistique", segment(STADES.map((st) => ({ st, v: P.logistique[st].ecl[i] })), "Répartition de la provision logistique")),
+    el("div", { class: "rangee" }, "Provision LightGBM", segment(STADES.map((st) => ({ st, v: P.lightgbm[st].ecl[i] })), "Répartition de la provision LightGBM")));
+  const maxStade = Math.max(...MODELES.flatMap((mo) => STADES.map((st) => P[mo][st].ecl[i])), 1);
+  id("cartes-stades").replaceChildren(...STADES.map((st) => {
+    const duo = el("div", { class: "duo" });
     for (const mo of MODELES) {
-      const v = D.par_stade[mo][st].ecl[i];
-      paire.append(el("div", { class: "barre", title: `${NOM[mo]}, stade ${st} : ${musd(v)}` },
-        el("i", { style: `width:${(70 * v) / maxStade}%;background:${COULEUR[mo]}` }), millions(v)));
+      const v = P[mo][st].ecl[i];
+      duo.append(el("div", { class: "barre", title: `${NOM[mo]}, stade ${st} : ${musd(v)}` },
+        el("i", { style: `width:${(62 * v) / maxStade}%;background:${COULEUR[mo]}` }), `${millions(v)} M$`));
     }
-    barres.append(el("div", { class: "nom" }, "Stade " + st), paire);
-  }
-  table("table-stades", ["Stade", "Modèle", "Prêts", "Encours", "Provision", "Taux"],
-    STADES.flatMap((st) => MODELES.map((mo) => {
-      const s = D.par_stade[mo][st];
-      return ["Stade " + st, NOM[mo], entier(s.prets[i]), entier(s.encours[i] / 1e6), millions(s.ecl[i]),
-        s.encours[i] > 0 ? pct(s.ecl[i] / s.encours[i], false, 2) : "n.d."];
-    })));
+    const s = P.lightgbm[st], l = P.logistique[st];
+    const ecart = l.ecl[i] > 0 ? pct(s.ecl[i] / l.ecl[i] - 1, true) : "n.d.";
+    return el("div", { class: "stade" },
+      el("header", {}, el("div", { class: "jeton", style: `background:var(--s${st});color:var(--s${st}-t)` }, st),
+        el("div", {}, el("h3", {}, NOM_STADE[st]), el("p", {}, HORIZON[st]))),
+      duo,
+      el("dl", {},
+        el("dt", {}, "Prêts (LightGBM)"), el("dd", {}, entier(s.prets[i])),
+        el("dt", {}, "Encours"), el("dd", {}, entier(s.encours[i] / 1e6) + " M$"),
+        el("dt", {}, "Taux de provision logistique"), el("dd", {}, l.encours[i] > 0 ? pct(l.ecl[i] / l.encours[i], false, 2) : "n.d."),
+        el("dt", {}, "Taux de provision LightGBM"), el("dd", {}, s.encours[i] > 0 ? pct(s.ecl[i] / s.encours[i], false, 2) : "n.d."),
+        el("dt", {}, "Écart LightGBM"), el("dd", {}, st === "3" ? "aucun" : ecart)));
+  }));
 
+  /* Scénarios */
   const w = poids();
-  for (const s of ["central", "defavorable", "favorable"]) document.getElementById("o-" + s).textContent = pct(w[s]);
+  for (const s of ["central", "defavorable", "favorable"]) id("o-" + s).textContent = pct(w[s]);
   const sc = (mo) => D.scenarios[mo][etat.surcouche];
   table("table-scenarios", ["Provision (M$)", ...MODELES.map((mo) => NOM[mo])], [
     ["Macro figée", ...MODELES.map((mo) => millions(ecl[mo]))],
     ["Scénario central", ...MODELES.map((mo) => millions(sc(mo).central[i]))],
     ["Scénario défavorable", ...MODELES.map((mo) => millions(sc(mo).defavorable[i]))],
     ["Scénario favorable", ...MODELES.map((mo) => millions(sc(mo).favorable[i]))],
-    ["Pondérée", ...MODELES.map((mo) => millions(ponderee(mo, i, w)))],
+    ["Pondérée avec vos poids", ...MODELES.map((mo) => millions(ponderee(mo, i, w)))],
     ["Écart à la macro figée", ...MODELES.map((mo) => pct(ponderee(mo, i, w) / ecl[mo] - 1, true))],
-  ]);
-  lignes(document.getElementById("g-scenarios"), {
+  ], 4);
+  lignes(id("g-scenarios"), {
     titre: "Écart entre la provision pondérée par les scénarios et la provision à macro figée, par arrêté",
-    etiquettes: etiquettesArretes, zero: true, sel: i,
+    etiquettes: etiquettesArretes, zero: true, sel: i, hauteur: 320,
     series: MODELES.map((mo) => ({ nom: NOM[mo], couleur: COULEUR[mo],
       valeurs: D.arretes.map((_, j) => (ponderee(mo, j, w) / somme(mo, "ecl", j) - 1) * 100) })),
-    format: (v) => pct(v / 100, true), formatAxe: (v) => (v > 0 ? "+" : "") + nf(0).format(v).replace("-", "−") + " %",
-    graduationX: axeArrete, surChoix: choisir,
+    format: (v) => pct(v / 100, true), formatAxe: axePct, graduationX: axeArrete, surChoix: choisir,
   });
+  etat.premier = false;
 }
 
 function rendreFixes() {
   const G = D.lgd;
-  document.getElementById("lgd-min").textContent = entier(G.min_defauts);
-  lignes(document.getElementById("g-lgd"), {
-    titre: "Perte en cas de défaut prévue et réalisée, par année de défaut", etiquettes: G.annees.map((an) => "Défauts de " + an), zero: true,
+  id("lgd-min").textContent = entier(G.min_defauts);
+  lignes(id("g-lgd"), {
+    titre: "Perte en cas de défaut prévue et réalisée, par année de défaut", etiquettes: G.annees.map((an) => "Défauts de " + an), zero: true, hauteur: 300,
     series: [
       { nom: "Prévue", couleur: "var(--prevue)", valeurs: G.prevue.map((v) => v * 100) },
       { nom: "Réalisée", couleur: "var(--observe)", valeurs: G.realisee.map((v) => v * 100) },
@@ -452,28 +802,64 @@ function rendreFixes() {
     complement: (j) => [entier(G.defauts[j]) + " défauts résolus"],
     graduationX: (j) => String(G.annees[j]),
   });
-  table("table-generations", ["Génération", "Logistique", "LightGBM", "Pertes", "Avec estimées"],
-    D.generations.map((g) => [g.millesime, millions(g.ecl.logistique), millions(g.ecl.lightgbm),
-      millions(g.pertes), millions(g.pertes + g.pertes_estimees)]));
+  const maxG = Math.max(...D.generations.map((g) => g.pertes + g.pertes_estimees));
+  id("generations").replaceChildren(...D.generations.map((g) => {
+    const total = g.pertes + g.pertes_estimees, l = (v) => `${(64 * v) / maxG}%`;
+    return el("div", { class: "generation" },
+      el("div", { class: "an" }, String(g.millesime)),
+      el("div", { class: "barre", title: `Provision LightGBM à l'octroi : ${musd(g.ecl.lightgbm)}` }, el("i", { style: `width:${l(g.ecl.lightgbm)};background:var(--lightgbm)` }), millions(g.ecl.lightgbm)),
+      el("div", { class: "fois" }, "× " + nf(0).format(g.pertes / g.ecl.lightgbm), el("small", {}, "pertes / provision")),
+      el("div", { class: "barre", title: `Pertes constatées : ${musd(g.pertes)}, estimées en plus : ${musd(g.pertes_estimees)}` },
+        el("span", { class: "pile", style: `width:${l(total)}` },
+          el("i", { style: `flex:${g.pertes};background:var(--observe);border-radius:0` }),
+          el("i", { class: "hachure", style: `flex:${g.pertes_estimees};background-color:var(--observe)` })),
+        `${millions(g.pertes)} + ${millions(g.pertes_estimees)}`));
+  }));
   table("table-arretes", ["Arrêté", "Provision logistique", "Provision LightGBM", "Écart", "Intervalle à 95 %", "Pertes constatées"],
     D.arretes.map((a, j) => [dateCourte(a), millions(somme("logistique", "ecl", j)), millions(somme("lightgbm", "ecl", j)),
       pct(D.bootstrap.ecart[j], true), `${pct(D.bootstrap.bas[j], true)} à ${pct(D.bootstrap.haut[j], true)}`,
       millions(somme("logistique", "pertes", j))]));
 }
 
-const liste = document.getElementById("arrete"), curseur = document.getElementById("arrete-curseur");
-D.arretes.forEach((a, j) => liste.append(el("option", { value: j }, dateLongue(a))));
-curseur.max = String(n - 1);
-liste.addEventListener("change", () => choisir(+liste.value));
-curseur.addEventListener("input", () => choisir(+curseur.value));
-for (const s of ["central", "defavorable", "favorable"]) document.getElementById("p-" + s).addEventListener("input", rendre);
-document.getElementById("surcouche").addEventListener("change", (ev) => { etat.surcouche = ev.target.value; rendre(); });
-document.getElementById("p-reinit").addEventListener("click", () => {
-  for (const [s, v] of [["central", 50], ["defavorable", 30], ["favorable", 20]]) document.getElementById("p-" + s).value = v;
+/* Éléments fixes de la page */
+const ref = D.arretes.indexOf("2007-12");
+id("reponse-ecart").textContent = pct(D.bootstrap.ecart[ref], true);
+id("reponse-lgb").textContent = musd(somme("lightgbm", "ecl", ref)).replace("M$", "millions de dollars");
+id("reponse-log").textContent = millions(somme("logistique", "ecl", ref));
+id("fait-arretes").textContent = String(n);
+for (const cible of ["reperes-ouverture", "reperes-ecl"]) {
+  id(cible).replaceChildren(...REPERES.map((r, j) => el("li", {}, el("span", { class: "pastille" }, String(j + 1)), r.texte)));
+}
+const frise = id("frise");
+for (const an of [...new Set(D.arretes.map((a) => a.slice(0, 4)))]) {
+  const groupe = el("div", { class: "trimestres" });
+  D.arretes.forEach((a, j) => {
+    if (a.startsWith(an)) groupe.append(el("button", { type: "button", "data-i": j, "aria-label": dateLongue(a) }, "T" + +a.slice(5) / 3));
+  });
+  frise.append(el("div", { class: "annee" }, el("span", {}, an), groupe));
+}
+frise.addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (b) choisir(+b.dataset.i); });
+id("precedent").addEventListener("click", () => choisir(etat.i - 1));
+id("suivant").addEventListener("click", () => choisir(etat.i + 1));
+id("lecture").addEventListener("click", () => {
+  if (etat.lecture) { arreter(); return; }
+  id("lecture-forme").setAttribute("d", "M4 3h3v10H4zM9 3h3v10H9z");
+  id("lecture").setAttribute("aria-label", "Arrêter la lecture");
+  if (etat.i === n - 1) choisir(0, true);
+  etat.lecture = setInterval(() => { if (etat.i >= n - 1) arreter(); else choisir(etat.i + 1, true); }, 1100);
+});
+for (const s of ["central", "defavorable", "favorable"]) id("p-" + s).addEventListener("input", rendre);
+id("surcouche").addEventListener("change", (ev) => { etat.surcouche = ev.target.value; rendre(); });
+id("p-reinit").addEventListener("click", () => {
+  for (const [s, v] of [["central", 50], ["defavorable", 30], ["favorable", 20]]) id("p-" + s).value = v;
   rendre();
 });
-let attente;
-window.addEventListener("resize", () => { clearTimeout(attente); attente = setTimeout(() => { rendre(); rendreFixes(); }, 120); });
+let attente, largeur = window.innerWidth;
+window.addEventListener("resize", () => {
+  if (window.innerWidth === largeur) return;
+  largeur = window.innerWidth;
+  clearTimeout(attente); attente = setTimeout(() => { rendre(); rendreFixes(); }, 120);
+});
 rendre();
 rendreFixes();
 </script>
