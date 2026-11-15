@@ -186,12 +186,17 @@ def main() -> None:
         [defauts_du_millesime(a, None, etats_arretes, trans_test) for a in ANNEES_TEST],
         ignore_index=True,
     )
-    test = test[test["mois_defaut"].dt.year.between(2006, FIN_DEFAUT_TEST.year)]
+    test = test[test["mois_defaut"].dt.year >= 2006]
     dossier_fred = DOSSIER_DONNEES / "brut" / "fred"
     m = macro.charger(dossier_fred)
     hpi = macro.indice_prix(dossier_fred)
     etats = macro.indices_prix_etats(dossier_fred / "etats")
     app, test = variables(app, octroi, etats, hpi), variables(test, octroi, etats, hpi)
+    # Validation de la LGD sur les défauts 2006-2010 (D-028). Les défauts
+    # postérieurs servent au backtest des pertes à maturité (D-055) et de
+    # période indépendante du choix des variables (D-056).
+    apres = test[test["mois_defaut"].dt.year > FIN_DEFAUT_TEST.year]
+    test = test[test["mois_defaut"].dt.year <= FIN_DEFAUT_TEST.year]
     print(f"Défauts : {len(app):,} entraînement, {len(test):,} test ({time.time() - t0:.0f} s)")
     print(app["resolution"].value_counts().to_string())
 
@@ -207,6 +212,12 @@ def main() -> None:
             modele.predire(test),
             "annee_defaut",
         ),
+        "apres_2010_par_annee_defaut": resume(
+            apres.assign(annee_defaut=apres["mois_defaut"].dt.year),
+            modele.predire(apres),
+            "annee_defaut",
+        ),
+        "apres_2010": resume(apres, modele.predire(apres)),
     }
     essais = specifications(app, test, m)
     essais.to_csv(RESULTATS / "lgd_specifications.csv", index=False)
@@ -217,7 +228,13 @@ def main() -> None:
         print(nom)
         print(t.round(3).to_string())
 
-    toutes = pd.concat([app.assign(echantillon="entrainement"), test.assign(echantillon="test")])
+    toutes = pd.concat(
+        [
+            app.assign(echantillon="entrainement"),
+            test.assign(echantillon="test"),
+            apres.assign(echantillon="test_apres_2010"),
+        ]
+    )
     toutes.assign(
         mois_defaut=toutes["mois_defaut"].dt.to_timestamp(),
         mois_resolution=toutes["mois_resolution"].dt.to_timestamp(),

@@ -178,3 +178,41 @@ def test_ancrage_possible_ne_signale_rien():
     with warnings.catch_warnings():
         warnings.simplefilter("error", moteur.AvertissementAncrage)
         moteur.ancrer_matrice(h, np.array([0.0, 0.01, 0.3]), np.array([12, 12, 6]), hp=hp)
+
+
+def test_ancrage_central_puis_remboursement_du_scenario():
+    # D-054 : dans un scénario, l'ancrage se fait avec le remboursement
+    # central ; le remboursement du scénario n'agit qu'ensuite.
+    n = 24
+    h = np.full((1, n), 0.004)
+    hp_central = np.full((1, n), 0.01)
+    hp_scenario = np.full((1, n), 0.05)
+    pd12 = np.array([0.03])
+    args = (np.array([1]), np.array([100_000.0]), np.array([0.06]), np.array([n]), np.array([0.3]))
+    central = moteur.provisions(*args, pd12, h, hasards_rembt=hp_central)
+    reancre = moteur.provisions(*args, pd12, h, hasards_rembt=hp_scenario)
+    separe = moteur.provisions(
+        *args, pd12, h, hasards_rembt=hp_scenario, hasards_rembt_ancrage=hp_central
+    )
+    # Ancré au central, plus de remboursement réduit la PD à 12 mois, donc la provision.
+    assert separe[0] < central[0]
+    # Ré-ancré sur le remboursement du scénario, la PD à 12 mois revient à la
+    # cible : la provision reste proche du central, l'effet du scénario est gommé.
+    assert separe[0] < reancre[0]
+    assert abs(reancre[0] / central[0] - 1) < abs(separe[0] / central[0] - 1)
+    # Calcul à la main de la PD à 12 mois du scénario après ancrage central.
+    a = moteur.ancrer_matrice(h, pd12, np.array([12]), hp=hp_central)
+    np.testing.assert_allclose(moteur.incidence(a[:, :12], hp_central[:, :12])[:, -1], pd12)
+    c = a[0, 0]
+    attendu = sum(c * (1 - c - 0.05) ** k for k in range(12))
+    np.testing.assert_allclose(
+        moteur.incidence(a[:, :12], hp_scenario[:, :12])[:, -1], [attendu], rtol=1e-12
+    )
+    assert attendu < pd12[0]
+    # Même remboursement pour l'ancrage et la projection : rien ne change.
+    np.testing.assert_allclose(
+        moteur.provisions(
+            *args, pd12, h, hasards_rembt=hp_central, hasards_rembt_ancrage=hp_central
+        ),
+        central,
+    )

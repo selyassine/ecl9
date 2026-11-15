@@ -147,6 +147,15 @@ def main() -> None:
             taux_attendu_figee=("h_figee", "mean"),
         )
         annees.append(a.assign(modele=nom))
+        if nom == "contraint":
+            # Par année et par millésime : où se loge la surestimation (D-056).
+            cohortes = test.groupby(["annee", "annee_octroi"]).agg(
+                prets_mois=("rembt", "size"),
+                taux_observe=("rembt", "mean"),
+                taux_attendu_realisee=("h_realisee", "mean"),
+                taux_attendu_figee=("h_figee", "mean"),
+            )
+            cohortes.to_csv(RESULTATS / "remboursement_par_cohorte.csv")
         coefs.append(survie.coefficients_macro(modele).rename(nom))
 
     # Prêts en retard : remboursements observés et attendus, avec et sans l'effet.

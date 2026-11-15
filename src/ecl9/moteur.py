@@ -222,6 +222,7 @@ def provisions(
     hasards: np.ndarray,
     ecart_logit: np.ndarray | float | None = None,
     hasards_rembt: np.ndarray | None = None,
+    hasards_rembt_ancrage: np.ndarray | None = None,
 ) -> np.ndarray:
     """Provision de chaque prêt (D-005 à D-008, D-024), taux en décimal.
 
@@ -230,6 +231,12 @@ def provisions(
     est ajouté au logit des hasards **après** l'ancrage : c'est l'écart d'un
     scénario au scénario central (D-036). ``hasards_rembt`` (prêts × mois)
     ajoute le remboursement anticipé en risque concurrent (D-040).
+
+    ``hasards_rembt_ancrage`` : remboursement utilisé pour l'ancrage quand il
+    diffère de celui de la projection (D-054). Dans un scénario, l'ancrage se
+    fait avec le remboursement central, puis l'écart de logit et le
+    remboursement du scénario s'appliquent : la PD à 12 mois du scénario n'est
+    donc pas ramenée à la cible. Par défaut, le même remboursement sert aux deux.
     """
     stade = np.asarray(stade)
     restants = np.asarray(mois_restants, dtype=int)
@@ -238,7 +245,8 @@ def provisions(
     horizon = np.where(stade == 3, 0, horizon)
     if (horizon > n_mois).any():
         raise ValueError("hasards trop courts pour l'horizon des stades 2")
-    h = ancrer_matrice(hasards, pd12, np.minimum(HORIZON_STADE1_MOIS, restants), hp=hasards_rembt)
+    hp_ancrage = hasards_rembt if hasards_rembt_ancrage is None else hasards_rembt_ancrage
+    h = ancrer_matrice(hasards, pd12, np.minimum(HORIZON_STADE1_MOIS, restants), hp=hp_ancrage)
     if ecart_logit is not None:
         h = decaler(h, ecart_logit)
     marginales = np.diff(incidence(h, hasards_rembt), axis=1, prepend=0.0)

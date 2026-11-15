@@ -923,3 +923,80 @@ Recalcul de D-042 (100 tirages, même graine) : au 31/12/2007, écart médian
 L'intervalle publié avant cette revue (+ 27 % à + 80 %) portait sur des
 provisions sans prêts régularisés ni nouvelle LGD. L'écart de la coupure
 stricte (+ 21 %, D-046) reste sous la borne basse.
+
+## 2026-11-15 — Deuxième revue : ancrage des scénarios, fenêtre du backtest, contrôles
+
+Une seconde relecture critique, après le commit `219dbb4`, relève trois
+points de calcul. Chacun est vérifié dans le code avant d'être traité.
+
+### D-054 Ancrage au remboursement central dans les scénarios
+
+**Corrige l'application de D-036 au remboursement (D-040).** Dans un
+scénario, `moteur.provisions` recevait le remboursement du scénario et s'en
+servait aussi pour l'ancrage : la PD à 12 mois était ramenée à la cible sous
+le remboursement du scénario, ce qui gommait son effet sur les 12 premiers
+mois. C'est le défaut que D-036 avait corrigé pour les écarts de logit, resté
+pour le remboursement.
+
+`provisions` accepte désormais `hasards_rembt_ancrage`. Dans un scénario,
+l'ancrage se fait avec le remboursement central (macro figée), puis l'écart
+de logit et le remboursement du scénario s'appliquent. Hors scénario, rien ne
+change : le résultat principal, le double calcul R et les bootstraps sont
+identiques. Un test compare les deux ordres et vérifie à la main la PD à
+12 mois d'un scénario.
+
+Effet : au 31/12/2007, le scénario défavorable ajoute + 20 % à la provision
+au lieu de + 25 % (la baisse des taux y accroît les remboursements, ce qui
+réduit maintenant aussi la PD à 12 mois) ; l'effet pondéré va de − 30 % à
++ 15 % selon l'arrêté (− 29 % à + 16 % avant).
+
+### D-055 Pertes du backtest : défauts postérieurs à 2010
+
+**Corrige l'application de D-032.** D-032 compte, pour un prêt en stade 2,
+les défauts « jusqu'à la fin des données », et pour une génération les pertes
+« jusqu'en juin 2026 ». Or l'étape 5 ne conservait que les défauts survenus
+de 2006 à 2010 (fenêtre de validation de la LGD, D-028), et l'étape 7 lisait
+ce fichier : les 8 029 premiers défauts postérieurs à 2010 des millésimes de
+test n'entraient dans aucune perte constatée. Trois conséquences :
+
+- les pertes à maturité (stade 2, générations) étaient tronquées à 2010 ;
+- pour un arrêté de 2010, la fenêtre de 12 mois du stade 1 était amputée :
+  au 31/12/2010, les pertes constatées du stade 1 valaient zéro ;
+- la couverture de fin de période était donc surestimée.
+
+Tous les défauts des millésimes de test sont désormais conservés
+(`echantillon = test_apres_2010` pour ceux d'après 2010) et lus par le
+backtest. La validation de la LGD garde sa fenêtre 2006-2010.
+
+Effet : pertes par génération de 296, 309 et 147 M$ pour 2006, 2007 et 2008
+(220, 226 et 96 M$ avant) ; au 31/12/2010, pertes constatées de 602 M$ au lieu
+de 462 M$, et couverture de 68 à 71 % au lieu de 88 à 93 %. Au 31/12/2007, la
+couverture passe de 10-14 % à 9,8-13,9 %. Les provisions ne changent pas.
+
+Le suivi reste censuré en juin 2026 : pour des prêts à 30 ans octroyés en
+2006-2008, les pertes « à maturité » couvrent 18 à 20 ans d'observation, pas
+toute la durée contractuelle. La note le dit.
+
+### D-056 Contrôles ajoutés
+
+- **Frontières des bandes des prêts régularisés (D-053)** : la relecture
+  soupçonnait un décalage d'un mois. Vérification faite, il n'y en a pas : la
+  table est indexée par le nombre de mois hors défaut au début de la
+  transition, mois courant compris, et la projection suit la même convention
+  (un prêt hors défaut depuis 3 mois à l'arrêté est encore dans la bande 1-3
+  pour le mois suivant). Un test l'établit sur un cas à la main, de
+  l'estimation à la projection.
+- **LGD sur une période indépendante du choix des variables (D-047)** : les
+  défauts de 2011 et après n'ont pas servi à comparer les jeux de variables.
+  Sur ces 7 622 défauts résolus, la LGD prévue est de 28,2 % pour 20,5 %
+  réalisés : proche en 2011 (28 % prévus, 26 % réalisés), puis trop haute à
+  mesure que les régularisations remontent (29 % pour 18 % en 2013). La LGD
+  de D-047 n'est donc pas biaisée vers le bas par construction ; elle suit
+  mal les changements de régime, dans les deux sens
+  (`rapport/resultats/lgd_apres_2010_par_annee_defaut.csv`).
+- **Remboursement anticipé par année et par millésime**
+  (`rapport/resultats/remboursement_par_cohorte.csv`) : la surestimation
+  touche tous les millésimes de test et culmine en 2008-2009.
+- **Tests du bootstrap** (`tests/test_bootstrap.py`) : intervalle nul quand
+  l'écart est proportionnel prêt par prêt, reproductibilité à graine donnée,
+  largeur qui diminue de moitié quand le portefeuille quadruple.

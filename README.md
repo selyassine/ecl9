@@ -68,7 +68,7 @@ perte publiée (D-044).
   taux le fait se déclencher par intermittence, sans dégradation de crédit.
 - Scénarios : ils agissent sur la PD par les taux et sur la LGD par les prix.
   Pondérés 50/30/20, ils changent la provision de - 29 % (début 2006, prix en
-  hausse) à + 16 % (2008) ; de - 31 % à + 24 % avec une sensibilité chômage
+  hausse) à + 15 % (2008) ; de - 32 % à + 22 % avec une sensibilité chômage
   et prix tirée de la littérature, publiée à part.
 - Prêts régularisés après un défaut : provisionnés en stade 2 avec une table
   de re-défaut estimée avant 2006, qui prévoit 2 783 nouveaux défauts sur

@@ -211,3 +211,31 @@ def test_regularises_projection_suit_les_bandes():
     # Depuis 24 mois : mois 24 (bande 13-24) puis 25 et plus.
     np.testing.assert_allclose(hd[1], [0.02, 0.01, 0.01, 0.01])
     np.testing.assert_allclose(hp[1], [0.003, 0.004, 0.004, 0.004])
+
+
+def test_regularises_frontieres_de_bandes_estimation_et_projection_coherentes():
+    # La table est indexée par le nombre de mois hors défaut au DÉBUT de la
+    # transition (mois courant compris) ; la projection suit la même
+    # convention. Un prêt régularisé depuis 3 mois à l'arrêté est encore dans
+    # la bande 1-3 pour le mois qui suit, puis passe en 4-6.
+    from ecl9 import regularises as rg
+
+    np.testing.assert_array_equal(
+        rg.bande(np.array([1, 3, 4, 6, 7, 12, 13, 24, 25, 99])), [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]
+    )
+    na = None
+    # Un prêt en défaut en 2001-01, hors défaut de 2001-02 à 2001-05, en défaut en 2001-06.
+    lignes = [("A", "2001-01", 100, "03", 1, na, na, na)]
+    lignes += [("A", f"2001-0{m}", 100, "00", m, na, na, na) for m in (2, 3, 4, 5)]
+    lignes += [("A", "2001-06", 100, "03", 6, na, na, na)]
+    e = rg.etats_apres_defaut(_suivi(lignes))
+    t = rg.transitions(e)
+    # Le nouveau défaut de 2001-06 part d'un prêt hors défaut depuis 4 mois : bande 4-6.
+    assert t.loc[t["redefaut"], "mois_depuis_regul"].tolist() == [4]
+    table = rg.table_hasards(t)
+    assert table.loc[0, "redefauts"] == 0 and table.loc[1, "redefauts"] == 1
+    assert table.loc[1, "hasard_redefaut"] == 1.0
+    # Projection depuis l'arrêté 2001-04 (hors défaut depuis 3 mois) : le mois
+    # suivant (2001-05) est sans défaut, le deuxième (2001-06) porte le défaut.
+    hd, _ = rg.projeter(table, np.array([3]), 2)
+    np.testing.assert_allclose(hd[0], [0.0, 1.0])

@@ -167,11 +167,12 @@ crise ; LightGBM s'en approche un peu moins mal.
 
 Toutes les définitions ont été figées et datées avant le moindre résultat,
 dans [`docs/decisions.md`](https://github.com/selyassine/ecl9/blob/main/docs/decisions.md)
-(D-001 à D-053). Les corrections et les améliorations y sont datées. Une
+(D-001 à D-056). Les corrections et les améliorations y sont datées. Une
 revue critique du 15/11/2026 a conduit à corriger le backtest et l'exposition
 du stade 3 (D-043 à D-046), puis à refaire la LGD, l'actualisation et la règle
 de retour en stade 1 (D-047 à D-051), enfin à remettre au bilan les prêts
-régularisés après un défaut (D-053) ; les provisions d'avant cette revue
+régularisés après un défaut (D-053) ; une seconde revue a corrigé l'ancrage
+des scénarios et la fenêtre de pertes du backtest (D-054 à D-056) ; les provisions d'avant cette revue
 restent publiées (`trimestriel_figee_avant_revue_modeles.csv`), comme celles
 calculées sans remboursement anticipé (suffixe `_sans_remboursement`).
 
@@ -228,6 +229,7 @@ vie.
 ```{python}
 ls = pd.read_csv(R / "lgd_specifications.csv")
 la = pd.read_csv(R / "lgd_test_par_annee_defaut.csv")
+lap = pd.read_csv(R / "lgd_apres_2010.csv").iloc[0]
 lr = ls[ls.specification.str.startswith("D-047")].iloc[0]
 l1 = ls[ls.specification.str.startswith("D-028 :")].iloc[0]
 Markdown(
@@ -275,7 +277,11 @@ Markdown(
 
 La LGD prévue suit les prix avec retard : elle reste trop basse en 2007-2008,
 quand les prix commencent seulement à baisser, et rejoint la LGD réalisée en
-2010. Dans la provision, la LGD est de plus actualisée au taux du prêt sur le
+2010. Sur les défauts de 2011 et après, qui n'ont pas servi à choisir les
+variables, elle prévoit `{python} pct(lap['lgd_prevue_ponderee'], 1)` pour
+`{python} pct(lap['lgd_realisee_ponderee'], 1)` réalisés : elle n'est pas
+biaisée vers le bas par construction, elle suit mal les changements de
+régime dans les deux sens (D-056). Dans la provision, la LGD est de plus actualisée au taux du prêt sur le
 délai médian de résolution observé avant 2006
 (D-049).
 
@@ -486,7 +492,10 @@ Markdown(
 ```
 
 À la fin de l'année d'octroi, la perte attendue sur toute la durée de vie ne
-couvre qu'une petite fraction des pertes constatées. Le remboursement
+couvre qu'une petite fraction des pertes constatées jusqu'en juin 2026, fin
+des données (D-055). Ce n'est pas une validation sur toute la durée
+contractuelle : pour des prêts à 30 ans, 18 à 20 ans seulement sont observés,
+même si 91 % des premiers défauts de ces générations sont survenus avant 2015. Le remboursement
 anticipé la réduit encore : avec les taux bas de fin 2008 figés, le modèle
 prévoit tant de remboursements que la perte attendue du millésime 2008 est
 divisée par 10 à 20, alors que ces remboursements ne se sont pas produits.

@@ -351,7 +351,12 @@ def calculer_arrete(
                     args_s = (*args[:3], lgd_scen[cle.split("_")[0]][sl], *args[4:])
                     resultats[nom].setdefault(f"ecl_{cle}", []).append(
                         moteur.provisions(
-                            st, *args_s, ecart_logit=ecart, hasards_rembt=hp_scen[cle]
+                            st,
+                            *args_s,
+                            ecart_logit=ecart,
+                            hasards_rembt=hp_scen[cle],
+                            # Ancrage au remboursement central (D-054).
+                            hasards_rembt_ancrage=hp,
                         )
                     )
 
@@ -528,7 +533,8 @@ def main(nom_trajectoire: str) -> None:
     pred["period"] = pd.PeriodIndex(pred["period"], freq="M")
     pred = pred[["loan_id", "period", "pd_logistique", "pd_lightgbm"]]
     defauts = pd.read_parquet(INTER / "defauts.parquet")
-    defauts = defauts[defauts["echantillon"].eq("test")]
+    # Tous les défauts des millésimes de test, y compris après 2010 (D-055).
+    defauts = defauts[defauts["echantillon"].ne("entrainement")].reset_index(drop=True)
     for c in ("mois_defaut", "mois_fin_defaut"):
         defauts[c] = pd.PeriodIndex(defauts[c], freq="M")
     defauts["perte_estimee"] = estimer_pertes_non_resolues(defauts)
