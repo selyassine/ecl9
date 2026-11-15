@@ -19,8 +19,8 @@
 > [`docs/decisions.md`](docs/decisions.md) before any model was fitted.
 > **Answer:** yes, but the effect is second-order. With everything else equal
 > (survival, prepayment, LGD, staging rule), LightGBM raises the allowance by
-> 28-41% between end-2006 and end-2008 (+41% at 31/12/2007, 95% interval +38%
-> to +45% on portfolio composition), and by 5-8% in 2009-2010. The size of the
+> 28-41% between end-2006 and end-2008 (+41% at 31/12/2007; 95% interval +24%
+> to +64% when both models are re-estimated on bootstrap samples), and by 5-8% in 2009-2010. The size of the
 > gap depends on the training window: it falls to +21% when the 2005
 > observation dates, whose labels mature in 2006, are dropped. Yet both
 > models, trained before the crisis, cover only 10-14% of the losses later
@@ -37,8 +37,9 @@ crise, mais beaucoup moins que l'erreur commune aux deux modèles.** Avec les
 mêmes variables, la même survie, le même remboursement anticipé, la même LGD
 et la même règle de stades, LightGBM provisionne 28 à 41 % de plus que la
 logistique entre fin 2006 et fin 2008. Au 31/12/2007, c'est 21,4 contre
-15,1 M$, soit + 41 % (intervalle à 95 % sur la composition du portefeuille :
-+ 38 à + 45 %). L'écart retombe à 5 à 8 % en 2009-2010, quand les défauts
+15,1 M$, soit + 41 % ; l'intervalle à 95 % est de + 38 à + 45 % sur la
+composition du portefeuille, et de + 24 à + 64 % en réestimant aussi les deux
+modèles (LightGBM au-dessus dans 100 tirages sur 100). L'écart retombe à 5 à 8 % en 2009-2010, quand les défauts
 déjà survenus dominent. L'ampleur dépend de la fenêtre d'entraînement : sans
 les arrêtés de 2005, dont les étiquettes ne sont connues que fin 2006,
 l'écart tombe à + 21 % au 31/12/2007

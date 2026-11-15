@@ -916,3 +916,10 @@ coupure stricte de D-046). Couverture des pertes chiffrées : 10 à 14 % au
 31/12/2007, 88 à 93 % au 31/12/2010.
 
 L'intervalle de D-042 est recalculé avec ces changements.
+
+Recalcul de D-042 (100 tirages, même graine) : au 31/12/2007, écart médian
++ 41 %, intervalle à 95 % de + 24 % à + 64 % ; au 31/12/2008, + 23 % à
++ 39 %. LightGBM provisionne plus que la logistique dans les 100 tirages.
+L'intervalle publié avant cette revue (+ 27 % à + 80 %) portait sur des
+provisions sans prêts régularisés ni nouvelle LGD. L'écart de la coupure
+stricte (+ 21 %, D-046) reste sous la borne basse.
