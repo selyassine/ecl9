@@ -80,6 +80,8 @@ COLS_TOT = ["encours", "ecl", "pertes_constatees", "pertes_non_resolus_estimees"
 tot = fig_.groupby(["arrete", "modele"])[COLS_TOT].sum()
 tot["pertes_avec_estimees"] = tot["pertes_constatees"] + tot["pertes_non_resolus_estimees"]
 tot1 = fig1.groupby(["arrete", "modele"])[["ecl"]].sum()
+tot0 = pd.read_csv(R / "trimestriel_figee_avant_revue_modeles.csv").groupby(["arrete", "modele"])[["ecl"]].sum()
+hausse = (tot["ecl"] / tot0["ecl"]).loc[["2006-12", "2007-12", "2008-12", "2009-12", "2010-12"]]
 dates = pd.PeriodIndex(sorted(fig_["arrete"].unique()), freq="M").to_timestamp(how="end")
 b = boot.set_index("arrete")
 b07 = b.loc["2007-12"]
@@ -155,15 +157,19 @@ crise ; LightGBM s'en approche un peu moins mal.
 | PD à 12 mois | logistique de référence, ou LightGBM sur les mêmes variables |
 | PD à maturité | survie en temps discret, 12 premiers mois ancrés sur la PD à 12 mois |
 | Remboursement anticipé | hasard en temps discret, risque concurrent du défaut |
-| LGD | probabilité de régularisation, puis sévérité |
+| LGD | probabilité de régularisation, puis sévérité, selon le ratio prêt / valeur réévalué aux prix de l'État ; recouvrement actualisé |
 | EAD | amortissement contractuel |
-| Stade 2 | 30 jours de retard, ou PD à maturité annualisée doublée depuis l'octroi |
+| Stade 2 | 30 jours de retard dans les 3 derniers mois, ou PD à maturité annualisée doublée depuis l'octroi |
+| Stade 3 | LGD actualisée × capital restant dû à l'arrêté |
 
 Toutes les définitions ont été figées et datées avant le moindre résultat,
 dans [`docs/decisions.md`](https://github.com/selyassine/ecl9/blob/main/docs/decisions.md)
-(D-001 à D-042). Les corrections et les améliorations y sont datées ; les
-résultats antérieurs restent publiés (suffixe `_sans_remboursement` pour la
-version 1, sans remboursement anticipé).
+(D-001 à D-051). Les corrections et les améliorations y sont datées. Une
+revue critique du 15/11/2026 a conduit à corriger le backtest et l'exposition
+du stade 3 (D-043 à D-046), puis à refaire la LGD, l'actualisation et la règle
+de retour en stade 1 (D-047 à D-051) ; les provisions d'avant cette revue
+restent publiées (`trimestriel_figee_avant_revue_modeles.csv`), comme celles
+calculées sans remboursement anticipé (suffixe `_sans_remboursement`).
 
 # Les deux modèles de PD à 12 mois
 
@@ -213,6 +219,61 @@ réduit à 44 %. Dans le moteur, le remboursement anticipé retire des prêts
 avant qu'ils ne fassent défaut : la provision baisse, surtout sur la durée de
 vie.
 
+# La LGD
+
+```{python}
+ls = pd.read_csv(R / "lgd_specifications.csv")
+la = pd.read_csv(R / "lgd_test_par_annee_defaut.csv")
+lr = ls[ls.specification.str.startswith("D-047")].iloc[0]
+l1 = ls[ls.specification.str.startswith("D-028 :")].iloc[0]
+Markdown(
+    pd.DataFrame(
+        {
+            "Variables de la LGD": ls["specification"],
+            "LGD prévue": ls["lgd_prevue_ponderee"].map(lambda v: pct(v, 1)),
+            "LGD réalisée": ls["lgd_realisee_ponderee"].map(lambda v: pct(v, 1)),
+            "Régularisations prévues": ls["part_regularisation_prevue"].map(pct),
+            "réalisées": ls["part_regularisation_realisee"].map(pct),
+            "Sévérité prévue": ls["severite_prevue"].map(pct),
+            "réalisée": ls["severite_realisee"].map(pct),
+        }
+    ).to_markdown(index=False)
+)
+```
+
+La première LGD, fondée sur la LTV d'octroi, prévoyait
+`{python} pct(l1['lgd_prevue_ponderee'], 1)` sur les défauts de 2006-2010 pour
+`{python} pct(l1['lgd_realisee_ponderee'], 1)` réalisés. La LGD retenue
+remplace la LTV d'octroi et le ratio de capital restant par leur produit
+corrigé des prix de l'État du bien, le ratio prêt / valeur **réévalué** à la
+date du défaut (D-047). Toujours estimée sur les seuls défauts d'avant 2006,
+elle prévoit `{python} pct(lr['lgd_prevue_ponderee'], 1)` : la baisse des prix
+suffit à faire chuter les régularisations prévues. La sévérité des pertes
+reste sous-estimée de moitié, aucune vente à perte de l'ampleur de la crise
+n'existant dans l'échantillon d'entraînement. Les autres jeux de variables du
+tableau ont été essayés et sont publiés tels quels : ajouter la variation des
+prix ou du chômage dégrade la prévision, leurs coefficients appris sur
+2000-2005 ayant le mauvais signe.
+
+```{python}
+Markdown(
+    pd.DataFrame(
+        {
+            "Année du défaut": la["annee_defaut"],
+            "Défauts résolus": la["defauts_resolus"].map(lambda v: fr(v, 0)),
+            "LGD prévue": la["lgd_prevue_ponderee"].map(lambda v: pct(v, 1)),
+            "LGD réalisée": la["lgd_realisee_ponderee"].map(lambda v: pct(v, 1)),
+        }
+    ).to_markdown(index=False)
+)
+```
+
+La LGD prévue suit les prix avec retard : elle reste trop basse en 2007-2008,
+quand les prix commencent seulement à baisser, et rejoint la LGD réalisée en
+2010. Dans la provision, la LGD est de plus actualisée au taux du prêt sur le
+délai médian de résolution observé avant 2006
+(D-049).
+
 # Provision trimestrielle et pertes constatées
 
 ```{python}
@@ -252,6 +313,7 @@ for a in ["2006-12", "2007-12", "2008-12", "2009-12", "2010-12"]:
             "dont stade 3 (M USD)": fr(s3 / 1e6),
             "Pertes chiffrées (M USD)": fr(t.loc["logistique", "pertes_constatees"] / 1e6),
             "Pertes avec non résolus estimés (M USD)": fr(t.loc["logistique", "pertes_avec_estimees"] / 1e6),
+            "LightGBM avant la revue des modèles (M USD)": fr(tot0.loc[(a, "lightgbm"), "ecl"] / 1e6),
             "LightGBM sans remboursement (M USD)": fr(tot1.loc[(a, "lightgbm"), "ecl"] / 1e6),
         }
     )
@@ -265,10 +327,13 @@ Markdown(pd.DataFrame(lignes).to_markdown(index=False))
 La provision est multipliée par `{python} fr(mult.min(), 0)` à
 `{python} fr(mult.max(), 0)` entre fin 2007 et fin 2009, mais surtout par le
 stade 3 : elle **réagit** aux défauts survenus, elle ne les **anticipe** pas.
-De fin 2009 à fin 2010, elle reste `{python} fr(ratio_pertes.min(), 0)` à
-`{python} fr(ratio_pertes.max(), 0)` fois inférieure aux pertes constatées ;
-la LGD, sous-estimée d'un facteur 4 sur la crise, y contribue autant que la
-PD.
+De fin 2009 à fin 2010, les pertes chiffrées valent encore
+`{python} fr(ratio_pertes.min(), 1)` à `{python} fr(ratio_pertes.max(), 1)`
+fois la provision. La nouvelle LGD (D-047) et son actualisation (D-049)
+multiplient la provision par `{python} fr(hausse.min(), 1)` à
+`{python} fr(hausse.max(), 1)` selon l'arrêté par rapport à la version
+précédente : c'est la LGD, plus que le choix du modèle de PD, qui
+déterminait le niveau de la provision.
 
 # L'écart entre LightGBM et la logistique
 
@@ -372,8 +437,13 @@ t.columns = [f"{NOM[m]}, surcouche {s}" for m, s in t.columns]
 Markdown("Au 31/12/2007 :\n\n" + t.reset_index(names="Pondérations").to_markdown(index=False))
 ```
 
-Dans le résultat principal, les scénarios n'agissent que par les taux, seul
-canal macro appris ; pondérés 50/30/20, ils changent la provision de
+Dans le résultat principal, les scénarios agissent sur la PD par les taux,
+seul canal macro appris par la survie, et sur la LGD par les prix : la CLTV
+est réévaluée au niveau de prix atteint après 12 mois de chaque trajectoire
+(D-047). Le scénario central prolonge la variation annuelle des prix observée
+à l'arrêté : il abaisse donc la provision tant que les prix montent (2006) et
+la relève dès qu'ils baissent. Pondérés 50/30/20, les scénarios changent la
+provision de
 `{python} pct(eff[''].min(), 1, True)` à `{python} pct(eff[''].max(), 1, True)`
 selon l'arrêté. La surcouche tirée d'Elul et al. (2010), publiée à part
 (D-034), fait réagir la PD au chômage et à la CLTV réévaluée : l'effet pondéré
@@ -383,8 +453,8 @@ national, et de `{python} pct(eff['_surcouche_etats'].min(), 1, True)` à
 `{python} pct(eff['_surcouche_etats'].max(), 1, True)` avec l'indice de chaque
 État (D-041). Même le scénario défavorable seul, avec surcouche, n'ajoute que
 `{python} pct(defav07.min(), 0)` à `{python} pct(defav07.max(), 0)` à la
-provision de fin 2007 : aucune pondération plausible ne comble un écart de 1 à
-10 avec les pertes.
+provision de fin 2007 : aucune pondération plausible ne comble l'écart avec
+les pertes.
 
 # Backtest par génération
 
@@ -434,16 +504,23 @@ divisée par 10 à 20, alors que ces remboursements ne se sont pas produits.
   non. Les intervalles de confiance ne couvrent pas cette incertitude.
 - L'intervalle avec réestimation tient fixes la survie, le remboursement et
   la LGD, et ne porte que sur 100 tirages.
-- La LGD prévue (7,6 %) est quatre fois inférieure à la LGD réalisée sur la
-  crise (29,5 %) : à elle seule, elle interdit de lire ces provisions comme
-  une estimation des pertes. Elle est commune aux deux modèles et ne change
-  pas leur écart relatif.
+- La LGD reste inférieure à la LGD réalisée sur la crise, surtout en
+  2007-2008, et sa sévérité est sous-estimée de moitié. Le jeu de variables
+  retenu a été choisi pour sa logique économique, mais après avoir vu les
+  résultats des autres sur la période de test : le tableau les publie tous.
+- Un prêt régularisé après un défaut sort du portefeuille modélisé : aucun
+  des modèles n'est estimé sur des prêts déjà passés par le défaut. Ces prêts
+  pèsent 0,2 % de l'encours fin 2007, 2,1 % fin 2009 et 7,4 % fin 2010
+  (D-051).
+- Le remboursement anticipé ignore le retard de paiement : l'effet a été
+  testé et il est nul sur 2000-2005, où un prêt en retard se remboursait
+  autant qu'un autre (D-048).
 - Pertes du backtest : une partie des défauts sort des données sans perte
   publiée. Ils comptent pour zéro dans les pertes chiffrées (minorant) et
   sont estimés à part (D-044).
-- Stade 3 mesuré par LGD × capital à l'arrêté (D-043), sans flux de
-  recouvrement actualisés ni intérêts courus ; stade 2 par une règle unique
-  de ratio de PD, sans critère qualitatif ni période de probation.
+- Stade 3 mesuré par LGD actualisée × capital à l'arrêté (D-043, D-049), avec
+  un délai de résolution unique et sans intérêts courus ; stade 2 sans
+  critère qualitatif, avec une probation de 3 mois sur le seul retard (D-050).
 - Le double calcul R contrôle l'implémentation de la formule, pas les
   hypothèses : une hypothèse fausse partagée par les deux programmes passe.
 
@@ -455,7 +532,7 @@ et fin 2008, un écart qui résiste à l'incertitude d'échantillonnage mais don
 l'ampleur est divisée par deux avec une année d'entraînement en moins, puis de
 moins de `{python} pct(apres.max() + 0.005, 0)` ensuite. Ce gain est réel mais
 second : entraînés sur une période sans crise, les deux modèles sous-estiment
-les pertes d'un facteur 10 ou plus au moment où cela compte, et le remboursement
+les pertes d'un facteur `{python} fr(1 / couv['lightgbm'], 0)` à `{python} fr(1 / couv['logistique'], 0)` fin 2007, et le remboursement
 anticipé, appris lui aussi avant la crise, aggrave cette sous-estimation. Le
 choix de l'algorithme pèse moins que ce que les données d'entraînement ne
 contiennent pas.

@@ -17,6 +17,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from ecl9 import lgd as lgdm
 from ecl9 import macro, moteur, survie
 from ecl9.definitions import ANNEES_TEST, SEUIL_RETARD_STADE2
 from ecl9.telechargement import DOSSIER_DONNEES
@@ -76,18 +77,18 @@ def main(arrete: pd.Period) -> pd.DataFrame:
     figee.index = pd.period_range(arrete + 1, periods=len(figee), freq="M")
     h = moteur.projeter_hasards(modele_survie, p, arrete, figee, int(restants.max()))
 
-    x_lgd = pd.DataFrame(
-        {
-            "orig_ltv": p["orig_ltv"],
-            "credit_score": p["credit_score"],
-            "ratio_crd": p["current_upb"] / p["orig_upb"],
-            "mi_pct": p["mi_pct"],
-            "age_defaut": p["loan_age"],
-        }
+    dossier_fred = DOSSIER_DONNEES / "brut" / "fred"
+    x_lgd = lgdm.variables_actifs(
+        p,
+        octroi,
+        arrete,
+        macro.indices_prix_etats(dossier_fred / "etats"),
+        macro.indice_prix(dossier_fred),
     )
-    lgd = modele_lgd.predire(x_lgd)
     crd = p["current_upb"].to_numpy(dtype=float)
     taux = p["current_interest_rate"].to_numpy(dtype=float) / 100
+    # CLTV réévaluée à l'arrêté (D-047), LGD actualisée (D-049).
+    lgd = modele_lgd.predire_actualisee(x_lgd, taux)
 
     resultats = p[["loan_id", "annee_octroi", "current_upb"]].assign(stade=stade, lgd=lgd)
     for nom in ("logistique", "lightgbm"):

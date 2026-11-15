@@ -12,8 +12,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from ecl9 import macro, survie, validation
-from ecl9.definitions import ANNEES_ENTRAINEMENT, ANNEES_TEST, DERNIER_ARRETE_ENTRAINEMENT
+from ecl9 import macro, moteur, survie, validation
+from ecl9.definitions import (
+    ANNEES_ENTRAINEMENT,
+    ANNEES_TEST,
+    DERNIER_ARRETE_ENTRAINEMENT,
+    SEUIL_RETARD_STADE2,
+)
 from ecl9.telechargement import DOSSIER_DONNEES
 
 RACINE = Path(__file__).resolve().parents[1]
@@ -28,6 +33,7 @@ COLONNES = [
     "annee_octroi",
     "zero_balance_code",
     "remaining_months_to_maturity",
+    "retard",
 ]
 FIN_TEST = pd.Period("2010-12", "M")
 PART = 0.05
@@ -42,6 +48,11 @@ def lire(annees, debut, fin, octroi, m, part, rng) -> pd.DataFrame:
             columns=COLONNES,
         )
         p["period"] = pd.PeriodIndex(p["period"], freq="M")
+        # Retard du mois précédent (D-048) : calculé avant le tirage des lignes.
+        p = p.sort_values(["loan_id", "period"])
+        p["en_retard_avant"] = (
+            p.groupby("loan_id", sort=False)["retard"].shift().fillna(0).ge(SEUIL_RETARD_STADE2)
+        )
         garde = (p["period"] <= fin).to_numpy().copy()
         if debut is not None:
             garde &= (p["period"] >= debut).to_numpy()
@@ -50,6 +61,24 @@ def lire(annees, debut, fin, octroi, m, part, rng) -> pd.DataFrame:
         p["rembt"] = survie.marquer_remboursement(p)
         morceaux.append(survie.preparer(p, octroi, m))
     return pd.concat(morceaux, ignore_index=True)
+
+
+def effet_retard(h: np.ndarray, rembt: np.ndarray, en_retard: np.ndarray) -> float:
+    """Écart de logit du hasard de remboursement d'un prêt en retard (D-048).
+
+    Le hasard du modèle sert de terme fixe : on cherche ``d`` tel que, sur les
+    prêts-mois en retard, la somme des hasards décalés de ``d`` égale le
+    nombre de remboursements observés (maximum de vraisemblance à un paramètre).
+    """
+    h, y = h[en_retard], rembt[en_retard]
+    bas, haut = -15.0, 15.0
+    for _ in range(80):
+        milieu = (bas + haut) / 2
+        if moteur.decaler(h, milieu).sum() > y.sum():
+            haut = milieu
+        else:
+            bas = milieu
+    return (bas + haut) / 2
 
 
 def main() -> None:
@@ -71,8 +100,15 @@ def main() -> None:
     )
     print(f"Variables macro retirées par la contrainte de signe : {retirees or 'aucune'}")
     modeles = {"libre": libre, "contraint": contraint}
+    # Effet du retard de paiement, ajouté au modèle retenu (D-048).
+    h_app = survie.hasards(contraint, app)
+    retard_app = app["en_retard_avant"].to_numpy()
+    delta = effet_retard(h_app, app["rembt"].to_numpy(), retard_app)
+    print(f"Effet du retard sur le logit du remboursement : {delta:+.3f}")
     with open(SORTIE / "modele.pkl", "wb") as f:
-        pickle.dump({**modeles, "retenu": "contraint", "retirees": retirees}, f)
+        pickle.dump(
+            {**modeles, "retenu": "contraint", "retirees": retirees, "effet_retard": delta}, f
+        )
 
     # Test : 20 % des prêts-mois 2006-2010 suffisent pour des agrégats stables.
     test = lire(ANNEES_TEST, pd.Period("2006-01", "M"), FIN_TEST, octroi, m, 0.20, rng)
@@ -112,6 +148,26 @@ def main() -> None:
         )
         annees.append(a.assign(modele=nom))
         coefs.append(survie.coefficients_macro(modele).rename(nom))
+
+    # Prêts en retard : remboursements observés et attendus, avec et sans l'effet.
+    retard = []
+    for perimetre, d in (("entrainement", app), ("test, macro réalisée", test)):
+        r = d[d["en_retard_avant"].to_numpy()]
+        h = survie.hasards(contraint, r)
+        retard.append(
+            {
+                "perimetre": perimetre,
+                "prets_mois_en_retard": len(r),
+                "part_des_prets_mois": len(r) / len(d),
+                "remboursements_observes": int(r["rembt"].sum()),
+                "attendus_sans_effet": float(h.sum()),
+                "attendus_avec_effet": float(moteur.decaler(h, delta).sum()),
+                "effet_logit": delta,
+            }
+        )
+    retard = pd.DataFrame(retard)
+    retard.to_csv(RESULTATS / "remboursement_retard.csv", index=False)
+    print(retard.round(4).to_string(index=False))
 
     mesures = pd.DataFrame(lignes)
     mesures.to_csv(RESULTATS / "remboursement_mesures.csv", index=False)

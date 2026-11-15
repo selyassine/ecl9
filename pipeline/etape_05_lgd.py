@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from ecl9 import donnees, lgd
+from ecl9 import donnees, lgd, macro
 from ecl9.definitions import ANNEES_ENTRAINEMENT, ANNEES_TEST, DERNIER_ARRETE_ENTRAINEMENT
 from ecl9.telechargement import DOSSIER_DONNEES
 
@@ -36,15 +36,78 @@ def defauts_du_millesime(annee: int, fin_observation, crd_arretes: list | None =
     return r.assign(annee_octroi=annee)
 
 
-def variables(defauts: pd.DataFrame, octroi: pd.DataFrame) -> pd.DataFrame:
+def variables(defauts: pd.DataFrame, octroi: pd.DataFrame, etats, hpi) -> pd.DataFrame:
     d = defauts.merge(
-        octroi[["loan_id", "orig_ltv", "credit_score", "mi_pct", "orig_upb"]],
+        octroi[
+            [
+                "loan_id",
+                "orig_ltv",
+                "orig_cltv",
+                "credit_score",
+                "mi_pct",
+                "orig_upb",
+                "property_state",
+                "first_payment_date",
+            ]
+        ],
         on="loan_id",
         how="left",
         validate="one_to_one",
     )
     d["ratio_crd"] = d["crd_defaut"] / d["orig_upb"]
-    return d
+    # CLTV réévaluée à la date du défaut avec l'indice de l'État (D-047).
+    d["cltv_reevaluee"] = lgd.cltv_reevaluee(
+        d.assign(current_upb=d["crd_defaut"]),
+        pd.PeriodIndex(d["first_payment_date"], freq="M") - 1,
+        pd.PeriodIndex(d["mois_defaut"], freq="M"),
+        etats,
+        hpi,
+    )
+    return d.drop(columns=["orig_cltv", "property_state", "first_payment_date"])
+
+
+def specifications(app: pd.DataFrame, test: pd.DataFrame, m: pd.DataFrame) -> pd.DataFrame:
+    """LGD prévue et réalisée sur le test pour chaque jeu de variables essayé (D-047)."""
+    essais = {
+        "D-028 : LTV d'octroi et ratio de capital": lgd.VARIABLES_V1,
+        "D-047 retenu : CLTV réévaluée": lgd.VARIABLES,
+        "CLTV réévaluée sans l'âge": ("cltv_reevaluee", "credit_score", "mi_pct"),
+        "D-028 + CLTV réévaluée": (*lgd.VARIABLES_V1, "cltv_reevaluee"),
+        "D-028 + CLTV réévaluée + prix sur un an": (
+            *lgd.VARIABLES_V1,
+            "cltv_reevaluee",
+            "hpi_var12",
+        ),
+        "D-028 + CLTV réévaluée + prix + chômage sur un an": (
+            *lgd.VARIABLES_V1,
+            "cltv_reevaluee",
+            "hpi_var12",
+            "chomage_var12",
+        ),
+    }
+    jeux = {}
+    for nom, d in (("entrainement", app), ("test", test)):
+        d = d[d["resolution"].isin(["perte", "regularisation"])].copy()
+        for c in ("hpi_var12", "chomage_var12"):
+            d[c] = m[c].reindex(pd.PeriodIndex(d["mois_defaut"], freq="M")).to_numpy()
+        jeux[nom] = d
+    lignes = []
+    for nom, v in essais.items():
+        modele = lgd.ajuster(jeux["entrainement"], v)
+        t = jeux["test"]
+        pertes = t[t["resolution"].eq("perte")]
+        lignes.append(
+            {
+                "specification": nom,
+                "lgd_prevue_ponderee": np.average(modele.predire(t), weights=t["crd_defaut"]),
+                "lgd_realisee_ponderee": np.average(lgd.lgd_realisee(t), weights=t["crd_defaut"]),
+                "part_regularisation_prevue": modele.p_regularisation(t).mean(),
+                "part_regularisation_realisee": t["resolution"].eq("regularisation").mean(),
+                "severite_prevue": modele.severite_attendue(pertes).mean(),
+                "severite_realisee": pertes["severite"].mean(),
+            }
+        )
+    return pd.DataFrame(lignes)
 
 
 def resume(d: pd.DataFrame, prevue: np.ndarray, groupe: str | None = None) -> pd.DataFrame:
@@ -84,7 +147,11 @@ def main() -> None:
         [defauts_du_millesime(a, None, crd_arretes) for a in ANNEES_TEST], ignore_index=True
     )
     test = test[test["mois_defaut"].dt.year.between(2006, FIN_DEFAUT_TEST.year)]
-    app, test = variables(app, octroi), variables(test, octroi)
+    dossier_fred = DOSSIER_DONNEES / "brut" / "fred"
+    m = macro.charger(dossier_fred)
+    hpi = macro.indice_prix(dossier_fred)
+    etats = macro.indices_prix_etats(dossier_fred / "etats")
+    app, test = variables(app, octroi, etats, hpi), variables(test, octroi, etats, hpi)
     print(f"Défauts : {len(app):,} entraînement, {len(test):,} test ({time.time() - t0:.0f} s)")
     print(app["resolution"].value_counts().to_string())
 
@@ -101,6 +168,10 @@ def main() -> None:
             "annee_defaut",
         ),
     }
+    essais = specifications(app, test, m)
+    essais.to_csv(RESULTATS / "lgd_specifications.csv", index=False)
+    print(essais.round(3).to_string(index=False))
+    print(f"Délai médian de résolution des pertes : {modele.delai_resolution_mois:.0f} mois")
     for nom, t in tableaux.items():
         t.to_csv(RESULTATS / f"lgd_{nom}.csv")
         print(nom)

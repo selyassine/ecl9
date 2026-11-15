@@ -17,6 +17,7 @@ CODE_REMBOURSEMENT = "01"
 
 # D-003 Stade 2
 SEUIL_RETARD_STADE2 = 1  # 30 jours ou plus
+PROBATION_STADE2_MOIS = 3  # mois sans retard exigés avant le retour en stade 1 (D-050)
 SEUIL_RATIO_PD_STADE2 = 2.0
 GRILLE_SEUILS_STADE2 = (1.5, 2.0, 2.5, 3.0, 4.0)
 

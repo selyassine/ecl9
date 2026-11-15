@@ -90,16 +90,15 @@ def test_lgd_deux_etapes_retrouve_les_moyennes():
     n = 4000
     x = pd.DataFrame(
         {
-            "orig_ltv": rng.uniform(50, 95, n),
+            "cltv_reevaluee": rng.uniform(50, 95, n),
             "credit_score": rng.normal(700, 50, n),
-            "ratio_crd": rng.uniform(0.8, 1.0, n),
             "mi_pct": rng.choice([0, 25], n),
             "age_defaut": rng.integers(6, 60, n),
         }
     )
-    p_regul = 1 / (1 + np.exp(-(1 - 0.05 * (x["orig_ltv"] - 70))))
+    p_regul = 1 / (1 + np.exp(-(1 - 0.05 * (x["cltv_reevaluee"] - 70))))
     regul = rng.random(n) < p_regul
-    sev = np.clip(0.2 + 0.01 * (x["orig_ltv"] - 70) + rng.normal(0, 0.1, n), 0, 1)
+    sev = np.clip(0.2 + 0.01 * (x["cltv_reevaluee"] - 70) + rng.normal(0, 0.1, n), 0, 1)
     d = x.assign(
         resolution=np.where(regul, "regularisation", "perte"),
         severite=np.where(regul, np.nan, sev),
@@ -108,5 +107,49 @@ def test_lgd_deux_etapes_retrouve_les_moyennes():
     prevue = m.predire(d)
     assert prevue.min() >= 0 and prevue.max() <= 1
     assert prevue.mean() == pytest.approx(lgd.lgd_realisee(d).mean(), rel=0.05)
-    # La LGD croît avec la LTV.
-    assert np.corrcoef(x["orig_ltv"], prevue)[0, 1] > 0.5
+    # La LGD croît avec la CLTV réévaluée.
+    assert np.corrcoef(x["cltv_reevaluee"], prevue)[0, 1] > 0.5
+
+
+def test_cltv_reevaluee_a_la_main():
+    prets = pd.DataFrame(
+        {
+            "orig_cltv": [80.0, np.nan, 90.0],
+            "orig_ltv": [80.0, 70.0, 90.0],
+            "orig_upb": [100_000.0, 200_000.0, 100_000.0],
+            "current_upb": [90_000.0, 200_000.0, 100_000.0],
+            "property_state": ["CA", "TX", "PR"],
+        }
+    )
+    mois = pd.period_range("2006-01", "2008-12", freq="M")
+    etats = pd.DataFrame({"CA": np.linspace(200, 130, len(mois)), "TX": 100.0}, index=mois)
+    national = pd.Series(np.linspace(100, 80, len(mois)), index=mois)
+    octroi = pd.PeriodIndex(["2006-01"] * 3, freq="M")
+    valeur = pd.PeriodIndex(["2008-12", "2008-12", "2008-12"], freq="M")
+    c = lgd.cltv_reevaluee(prets, octroi, valeur, etats, national)
+    # CA : 80 × 0,9 × 200 / 130 ; TX : LTV faute de CLTV, prix stables ;
+    # PR : pas d'indice d'État, indice national 100 / 80.
+    np.testing.assert_allclose(c, [80 * 0.9 * 200 / 130, 70.0, 90 * 100 / 80])
+
+
+def test_lgd_actualisee_a_la_main():
+    class Fixe:
+        def predict_proba(self, x):
+            return np.tile([0.6, 0.4], (len(x), 1))  # P(régularisation) = 0,4
+
+        def predict(self, x):
+            return np.full(len(x), 0.5)  # sévérité
+
+    m = lgd.ModeleLGD(Fixe(), Fixe(), ("a",), delai_resolution_mois=12.0)
+    x = pd.DataFrame({"a": [0.0, 0.0, 0.0]})
+    np.testing.assert_allclose(m.predire(x), 0.6 * 0.5)
+    taux = np.array([0.0, 0.12, 0.12])
+    ecoules = np.array([0.0, 0.0, 20.0])
+    attendu = [
+        0.6 * 0.5,  # taux nul : pas d'effet
+        0.6 * (1 - 0.5 * 1.01**-12),  # 12 mois à 1 % par mois
+        0.6 * 0.5,  # délai déjà écoulé : recouvrement immédiat
+    ]
+    np.testing.assert_allclose(m.predire_actualisee(x, taux, ecoules), attendu)
+    # L'actualisation ne peut qu'augmenter la LGD.
+    assert (m.predire_actualisee(x, taux, ecoules) >= m.predire(x) - 1e-12).all()

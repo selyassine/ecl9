@@ -17,6 +17,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from ecl9 import lgd as lgdm
 from ecl9 import macro, moteur, staging, survie
 from ecl9 import pd as pdm
 from ecl9 import scenarios as sc
@@ -24,6 +25,7 @@ from ecl9.definitions import (
     ANNEES_TEST,
     HORIZON_STADE1_MOIS,
     PONDERATIONS_SCENARIOS,
+    PROBATION_STADE2_MOIS,
     SEUIL_RATIO_PD_STADE2,
 )
 from ecl9.telechargement import DOSSIER_DONNEES
@@ -38,7 +40,29 @@ TAILLE_LOT = 20_000
 # Remboursement anticipé en risque concurrent (D-040) ; désactivé par
 # --sans-remboursement pour reproduire la version 1.
 REMBOURSEMENT = True
-PRIX_ETATS: pd.DataFrame | None = None  # indices FHFA par État (D-041), mode scénarios
+PRIX_ETATS: pd.DataFrame | None = None  # indices FHFA par État (D-041, D-047)
+PRIX_NATIONAL: pd.Series | None = None  # indice national, repli des États sans indice
+
+
+def charger_prix() -> None:
+    """Indices de prix nécessaires à la LGD (D-047) et à la surcouche (D-041)."""
+    global PRIX_ETATS, PRIX_NATIONAL
+    dossier = DOSSIER_DONNEES / "brut" / "fred"
+    PRIX_NATIONAL = macro.indice_prix(dossier)
+    PRIX_ETATS = macro.indices_prix_etats(dossier / "etats")
+
+
+def lgd_actifs(modele_lgd, p, octroi, arrete, taux, prix_relatif: float = 1.0) -> np.ndarray:
+    """LGD actualisée (D-049) des prêts actifs, CLTV réévaluée à l'arrêté (D-047).
+
+    ``prix_relatif`` : niveau des prix d'un scénario rapporté à celui de
+    l'arrêté ; la CLTV est divisée par ce niveau.
+    """
+    if PRIX_ETATS is None:
+        charger_prix()
+    x = lgdm.variables_actifs(p, octroi, arrete, PRIX_ETATS, PRIX_NATIONAL)
+    x["cltv_reevaluee"] = x["cltv_reevaluee"] / prix_relatif
+    return modele_lgd.predire_actualisee(x, taux)
 
 
 def suffixe_version() -> str:
@@ -129,7 +153,12 @@ def actifs(arrete: pd.Period, octroi, m) -> pd.DataFrame:
             continue
         p = pd.read_parquet(INTER / "panneau" / f"millesime_{a}.parquet")
         p["period"] = pd.PeriodIndex(p["period"], freq="M")
-        morceaux.append(p[(p["period"] == arrete) & p["defaut"].eq(0) & p["current_upb"].gt(0)])
+        # Plus fort retard des derniers mois, arrêté compris : probation (D-050).
+        fenetre = p[(p["period"] > arrete - PROBATION_STADE2_MOIS) & (p["period"] <= arrete)]
+        probation = fenetre.groupby("loan_id")["retard"].max()
+        q = p[(p["period"] == arrete) & p["defaut"].eq(0) & p["current_upb"].gt(0)].copy()
+        q["retard_probation"] = q["loan_id"].map(probation).to_numpy()
+        morceaux.append(q)
     p = survie.preparer(pd.concat(morceaux, ignore_index=True), octroi, m)
     p["remaining_months_to_maturity"] = (
         p["remaining_months_to_maturity"]
@@ -187,21 +216,19 @@ def calculer_arrete(
     restants = p["remaining_months_to_maturity"].to_numpy(dtype=int)
     crd = p["current_upb"].to_numpy(dtype=float)
     taux = p["current_interest_rate"].to_numpy(dtype=float) / 100
-    lgd = modele_lgd.predire(
-        pd.DataFrame(
-            {
-                "orig_ltv": p["orig_ltv"],
-                "credit_score": p["credit_score"],
-                "ratio_crd": p["current_upb"] / p["orig_upb"],
-                "mi_pct": p["mi_pct"],
-                "age_defaut": p["loan_age"],
-            }
-        )
-    )
+    lgd = lgd_actifs(modele_lgd, p, octroi, arrete, taux)
     n_max = int(restants.max())
     traj = trajectoire_figee(m, arrete, n_max)
     if hpi is not None:
         trajs = {s: sc.trajectoire(s, m, hpi, arrete, n_max) for s in PONDERATIONS_SCENARIOS}
+        # LGD de chaque scénario : prix au bout de 12 mois de la trajectoire (D-047).
+        mois_lgd = min(HORIZON_STADE1_MOIS, n_max) - 1
+        lgd_scen = {
+            s: lgd_actifs(
+                modele_lgd, p, octroi, arrete, taux, float(t["hpi_relatif"].iloc[mois_lgd])
+            )
+            for s, t in trajs.items()
+        }
         mois_octroi = pd.PeriodIndex(
             p[["loan_id"]].merge(octroi[["loan_id", "first_payment_date"]], on="loan_id")[
                 "first_payment_date"
@@ -244,7 +271,7 @@ def calculer_arrete(
             pd_vie = pd_cumulee_ancree(h, pd12, restants[sl], hp)
             st = staging.stade(
                 en_defaut=np.zeros(len(pd12), dtype=bool),
-                retard_mensualites=p["retard"].to_numpy()[sl],
+                retard_mensualites=p["retard_probation"].to_numpy()[sl],
                 pd_vie_arrete=pd_vie,
                 mois_restants_arrete=restants[sl],
                 pd_vie_octroi=p[f"pd_vie_octroi_{nom}"].to_numpy()[sl],
@@ -269,8 +296,11 @@ def calculer_arrete(
                 )
             else:
                 for cle, ecart in ecarts.items():
+                    args_s = (*args[:3], lgd_scen[cle.split("_")[0]][sl], *args[4:])
                     resultats[nom].setdefault(f"ecl_{cle}", []).append(
-                        moteur.provisions(st, *args, ecart_logit=ecart, hasards_rembt=hp_scen[cle])
+                        moteur.provisions(
+                            st, *args_s, ecart_logit=ecart, hasards_rembt=hp_scen[cle]
+                        )
                     )
 
     # Stade 3 : défauts survenus avant l'arrêté et pas encore sortis.
@@ -279,7 +309,17 @@ def calculer_arrete(
         & (defauts["mois_fin_defaut"].isna() | (defauts["mois_fin_defaut"] > arrete))
         & (defauts["annee_octroi"] <= arrete.year)
     ]
-    lgd3 = modele_lgd.predire(d3) if len(d3) else np.zeros(0)
+    # LGD actualisée sur le délai de résolution restant, au taux d'octroi (D-049).
+    taux3 = (
+        d3[["loan_id"]]
+        .merge(octroi[["loan_id", "orig_interest_rate"]], on="loan_id", how="left")[
+            "orig_interest_rate"
+        ]
+        .to_numpy(dtype=float)
+        / 100
+    )
+    ecoules = arrete.ordinal - pd.PeriodIndex(d3["mois_defaut"], freq="M").astype("int64")
+    lgd3 = modele_lgd.predire_actualisee(d3, taux3, ecoules) if len(d3) else np.zeros(0)
     perte3 = np.where(d3["resolution"].eq("perte"), d3["perte_montant"].astype(float), 0.0)
     # Exposition du stade 3 : capital à l'arrêté, à défaut capital au défaut (D-043).
     crd3 = d3["crd_defaut"].to_numpy(dtype=float)
@@ -294,7 +334,7 @@ def calculer_arrete(
             {
                 "loan_id": p["loan_id"],
                 "crd": crd,
-                "retard": p["retard"].fillna(0).to_numpy(),
+                "retard": p["retard_probation"].fillna(0).to_numpy(),
                 **{
                     f"{c}_{nom}": np.concatenate(resultats[nom][c])
                     for nom in MODELES
@@ -394,14 +434,12 @@ def calculer_arrete(
 
 def main(nom_trajectoire: str) -> None:
     t0 = time.time()
-    global PRIX_ETATS
     hpi = (
         macro.indice_prix(DOSSIER_DONNEES / "brut" / "fred")
         if nom_trajectoire == "scenarios"
         else None
     )
-    if hpi is not None:
-        PRIX_ETATS = macro.indices_prix_etats(DOSSIER_DONNEES / "brut" / "fred" / "etats")
+    charger_prix()
     octroi = pd.read_parquet(INTER / "octroi.parquet")
     m = macro.charger(DOSSIER_DONNEES / "brut" / "fred")
     modeles = charger_modeles()

@@ -42,23 +42,14 @@ def portefeuille(arrete, octroi, m, modeles, test):
     restants = p["remaining_months_to_maturity"].to_numpy(dtype=int)
     n = int(restants.max())
     traj = e7.trajectoire_figee(m, arrete, n)
-    lgd = lgd_.predire(
-        pd.DataFrame(
-            {
-                "orig_ltv": p["orig_ltv"],
-                "credit_score": p["credit_score"],
-                "ratio_crd": p["current_upb"] / p["orig_upb"],
-                "mi_pct": p["mi_pct"],
-                "age_defaut": p["loan_age"],
-            }
-        )
-    )
+    taux = p["current_interest_rate"].to_numpy(dtype=float) / 100
+    lgd = e7.lgd_actifs(lgd_, p, octroi, arrete, taux)
     stade3 = detail[detail["stade_logistique"] == 3]["ecl_logistique"].to_numpy()
     return {
         "x": x,
         "stades": {nom: p[f"stade_{nom}"].to_numpy() for nom in e7.MODELES},
         "crd": p["current_upb"].to_numpy(dtype=float),
-        "taux": p["current_interest_rate"].to_numpy(dtype=float) / 100,
+        "taux": taux,
         "restants": restants,
         "lgd": lgd,
         "h": moteur.projeter_hasards(survie_, p, arrete, traj, n),

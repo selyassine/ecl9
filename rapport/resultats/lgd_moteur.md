@@ -1,5 +1,8 @@
 # LGD, EAD et moteur de calcul (semaine 4)
 
+> Note de la semaine 4, conservée telle quelle. La LGD a été refaite le
+> 15/11/2026 (D-047, D-049) : voir `lgd_specifications.csv` et la note.
+
 Protocole : `docs/decisions.md`, D-027 à D-029. Les chiffres viennent de
 `pipeline/etape_05_lgd.py` et `pipeline/etape_06_moteur.py`.
 

@@ -740,3 +740,117 @@ conservé, son ampleur dépend donc de l'année d'entraînement retirée : + 25 
 est sous la borne basse de l'intervalle de D-042 (+ 27 %), qui ne mesure que
 l'incertitude d'échantillonnage à fenêtre d'entraînement donnée. La réponse
 publiée donne désormais les deux chiffres.
+
+## 2026-11-15 — Revue des modèles : LGD, remboursement, actualisation, probation
+
+Suite de la revue critique : après les corrections de calcul (D-043 à D-046),
+les limites de modèle. Chaque point est testé sur les données avant d'être
+retenu ou écarté, et les essais non retenus sont publiés.
+
+### D-047 LGD selon le ratio prêt / valeur réévalué
+
+**Remplace les variables de D-028.** La LGD de D-028 prévoyait 7,6 % sur les
+défauts de 2006-2010 pour 29,5 % réalisés. Ses variables (LTV d'octroi, ratio
+de capital restant) ne portent aucune information sur les prix.
+
+- **Variable nouvelle** : la CLTV réévaluée à la date du défaut, soit CLTV
+  d'octroi × capital restant / capital initial × prix à l'octroi / prix au
+  défaut, avec l'indice FHFA de l'État du bien et ses délais de publication
+  (D-041), à défaut l'indice national. Elle remplace la LTV d'octroi et le
+  ratio de capital, dont elle est le produit corrigé des prix.
+- **Variables retenues** : CLTV réévaluée, score à l'octroi, taux d'assurance
+  hypothécaire, âge du prêt au défaut. Mêmes deux étapes, même échantillon
+  d'entraînement (défauts jusqu'à fin 2005) que D-028.
+- **Pour un prêt actif**, la LGD est celle qu'il aurait s'il faisait défaut à
+  l'arrêté : CLTV réévaluée aux prix connus à l'arrêté. **Dans un scénario**,
+  la CLTV est réévaluée au niveau de prix atteint après 12 mois de la
+  trajectoire (D-034) : les scénarios agissent désormais sur la LGD par les
+  prix, dans le résultat principal, puisque ce lien est estimé sur les
+  données du projet et non emprunté à une étude extérieure.
+
+Résultat (`rapport/resultats/lgd_specifications.csv`) : LGD prévue de 21,9 %
+sur le test pour 29,5 % réalisés ; régularisations prévues 36 % (réalisées
+42 %), sévérité prévue 31 % (réalisée 55 %). Par année de défaut, la LGD
+prévue passe de 10 % (2007) à 25 % (2010), pour 32 % et 26 % réalisés : elle
+suit les prix avec retard.
+
+**Réserve de méthode.** Six jeux de variables ont été comparés sur la période
+de test avant ce choix, ce qui est une forme de sélection sur le test. Le jeu
+retenu l'a été pour sa logique (une seule variable de prix, pas de doublon
+avec ses composantes) et non pour son score : la variante « D-028 + CLTV
+réévaluée » fait un peu mieux (23,7 %) mais inverse le signe de la LTV
+d'octroi. Ajouter la variation annuelle des prix ou du chômage dégrade la
+prévision (15,8 % et 10,6 %) : comme pour la survie (D-026), leurs
+coefficients appris sur 2000-2005 ont le mauvais signe. Tous les essais sont
+publiés.
+
+### D-048 Remboursement anticipé et retard de paiement : essai non retenu
+
+D-045 attribuait les ancrages impossibles à un modèle de remboursement qui
+ignore le retard de paiement. Essai : un écart de logit pour les prêts ayant
+au moins une mensualité de retard le mois précédent, estimé par maximum de
+vraisemblance sur l'entraînement, le hasard du modèle servant de terme fixe.
+
+Résultat (`rapport/resultats/remboursement_retard.csv`) : l'écart estimé vaut
++0,02, c'est-à-dire rien. Sur 2000-2005, un prêt en retard se remboursait
+autant qu'un autre (135 remboursements observés pour 133 attendus). Sur
+2006-2010, les prêts en retard se sont remboursés dix fois moins que prévu
+(129 pour 1 356), mais cette information n'existe pas avant la crise.
+**L'effet n'est pas appliqué** ; il est estimé et publié par l'étape 4 bis.
+La borne de D-045 reste donc utile.
+
+### D-049 Actualisation du recouvrement
+
+**Complète D-006 et D-043.** La LGD était une perte nominale. En cas de
+perte, le recouvrement n'est encaissé qu'à la résolution du défaut :
+
+`LGD actualisée = (1 − P(régularisation)) × [1 − (1 − sévérité) × (1 + r/12)^(−d)]`
+
+- `r` : taux du prêt (taux courant pour un prêt actif, taux d'octroi en
+  stade 3) ;
+- `d` : délai médian entre le défaut et la perte sur l'échantillon
+  d'entraînement, soit 14 mois ; en stade 3, diminué des mois déjà passés en
+  défaut, avec un plancher à zéro ;
+- une régularisation ne coûte rien.
+
+Limites : un seul délai pour tous les prêts, mesuré avant la crise et sur des
+résolutions observées jusqu'à fin 2006 seulement, donc trop court ; pas
+d'intérêts courus. `actual_loss` de Freddie Mac inclut déjà les frais et les
+intérêts de retard, pas la valeur temps. La LGD réalisée du backtest reste
+nominale.
+
+### D-050 Probation avant le retour en stade 1
+
+**Complète D-003.** Un prêt reste en stade 2 tant qu'il a eu au moins une
+mensualité de retard à l'un des 3 derniers mois, arrêté compris
+(`PROBATION_STADE2_MOIS = 3`). Auparavant, seul le retard du mois de l'arrêté
+comptait. Le critère de dégradation de la PD est inchangé.
+
+Effet : la part de l'encours en stade 2 passe de 1,5 % à 2,3 % au 31/12/2007
+et de 10,1 % à 11,5 % au 31/12/2009 (modèle LightGBM).
+
+### D-051 Prêts régularisés après un défaut : limite de périmètre
+
+Constat fait pendant cette revue. Le panneau s'arrête au premier défaut
+(D-001) ; un prêt en défaut est en stade 3 jusqu'à sa sortie ou jusqu'à son
+retour sous 3 mensualités de retard (D-027). Après ce retour, il n'est plus
+dans le portefeuille provisionné, alors qu'il porte encore un encours :
+30 M$ fin 2007 (0,2 % de l'encours), 130 M$ fin 2008 (0,6 %), 367 M$ fin 2009
+(2,1 %), 897 M$ fin 2010 (7,4 %).
+
+Non corrigé : aucun modèle du projet n'est estimé sur des prêts déjà passés
+par le défaut, et leur appliquer la PD des prêts sains serait une hypothèse
+sans support. Les pertes du backtest sont comptées au premier défaut, sur
+le même périmètre : provisions et pertes restent comparables. La limite est
+publiée dans la note.
+
+### Effet d'ensemble de D-047, D-049 et D-050
+
+Provision au 31/12/2007 : 12,7 M$ (logistique) et 19,0 M$ (LightGBM), contre
+7,1 et 10,5 M$ avant cette revue ; elle est multipliée par 1,6 à 3,4 selon
+l'arrêté. Couverture des pertes chiffrées sur le même horizon : 9 à 13 % au
+31/12/2007 (5 à 8 % avant), 53 à 59 % au 31/12/2009, 76 à 82 % au 31/12/2010.
+L'écart LightGBM / logistique change peu : + 49 % au 31/12/2007 (+ 47 %
+avant), + 25 % avec la coupure stricte de D-046. Les provisions d'avant cette
+revue restent publiées dans
+`rapport/resultats/trimestriel_figee_avant_revue_modeles.csv`.

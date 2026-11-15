@@ -19,13 +19,15 @@
 > [`docs/decisions.md`](docs/decisions.md) before any model was fitted.
 > **Answer:** yes, but the effect is second-order. With everything else equal
 > (survival, prepayment, LGD, staging rule), LightGBM raises the allowance by
-> 31-52% between end-2006 and end-2008 (+47% at 31/12/2007; 95% interval +27%
+> 30-51% between end-2006 and end-2008 (+49% at 31/12/2007; 95% interval +27%
 > to +80% when both models are re-estimated on bootstrap samples), and by
-> 6-10% in 2009-2010. The size of the gap depends on the training window: it
+> 7-10% in 2009-2010. The size of the gap depends on the training window: it
 > falls to +25% when the 2005 observation dates, whose labels mature in 2006,
-> are dropped. Yet both models, trained before the crisis, cover only 5-8% of
-> the losses later booked over the same horizon (4-6% once defaults with no
-> published loss are estimated). Report and documentation are in
+> are dropped. Yet both models, trained before the crisis, cover only 9-13% of
+> the losses later booked over the same horizon at end-2007 (7-10% once
+> defaults with no published loss are estimated). The LGD model matters more
+> than the PD algorithm: revaluing loan-to-value with state house prices
+> roughly doubles the allowance. Report and documentation are in
 > French.
 
 **Note de provisionnement : <https://selyassine.github.io/ecl9/>**
@@ -33,27 +35,30 @@
 **Réponse : oui, LightGBM change la provision, toujours à la hausse avant la
 crise, mais beaucoup moins que l'erreur commune aux deux modèles.** Avec les
 mêmes variables, la même survie, le même remboursement anticipé, la même LGD
-et la même règle de stades, LightGBM provisionne 31 à 52 % de plus que la
-logistique entre fin 2006 et fin 2008. Au 31/12/2007, c'est 10,5 contre
-7,1 M$, soit + 47 % ; l'intervalle à 95 % est de + 44 à + 51 % sur la
+et la même règle de stades, LightGBM provisionne 30 à 51 % de plus que la
+logistique entre fin 2006 et fin 2008. Au 31/12/2007, c'est 19,0 contre
+12,7 M$, soit + 49 % ; l'intervalle à 95 % est de + 45 à + 53 % sur la
 composition du portefeuille, et de + 27 à + 80 % en réestimant aussi les deux
-modèles (LightGBM au-dessus dans 100 tirages sur 100). L'écart retombe à 6 à
+modèles (LightGBM au-dessus dans 100 tirages sur 100). L'écart retombe à 7 à
 10 % en 2009-2010, quand les défauts déjà survenus dominent. L'ampleur dépend
 de la fenêtre d'entraînement : sans les arrêtés de 2005, dont les étiquettes
 ne sont connues que fin 2006, l'écart tombe à + 25 % au 31/12/2007
 ([`coupure_stricte.csv`](rapport/resultats/coupure_stricte.csv), D-046). Mais
 entraînés sur 2000-2005, les deux modèles ne voient pas venir la crise : au
-31/12/2007, leurs provisions ne couvrent que 5 à 8 % des pertes chiffrées
-ensuite sur le même horizon, et 4 à 6 % en estimant les défauts sortis sans
+31/12/2007, leurs provisions ne couvrent que 9 à 13 % des pertes chiffrées
+ensuite sur le même horizon, et 7 à 10 % en estimant les défauts sortis sans
 perte publiée (D-044).
 
 - PD à 12 mois : LightGBM classe un peu mieux (AUC 0,815 contre 0,789 sur
   2006-2010) et sous-estime moins les défauts (31 % des défauts prévus contre
   17 %) ([`pd12.md`](rapport/resultats/pd12.md)).
-- Survie et LGD : aucune sensibilité au chômage ni aux prix n'est
-  identifiable sur 2000-2005 ([`survie.md`](rapport/resultats/survie.md)) ;
-  la LGD est sous-estimée d'un facteur 4 sur la crise
-  ([`lgd_moteur.md`](rapport/resultats/lgd_moteur.md)).
+- Survie : aucune sensibilité au chômage ni aux prix n'est identifiable sur
+  2000-2005 ([`survie.md`](rapport/resultats/survie.md)).
+- LGD : c'est elle qui fixe le niveau de la provision. Avec la LTV d'octroi,
+  elle prévoyait 7,6 % pour 29,5 % réalisés sur la crise ; avec le ratio
+  prêt / valeur réévalué aux prix de l'État du bien, toujours estimée avant
+  2006, elle prévoit 21,9 %, et la provision est multipliée par 1,6 à 3,4
+  ([`lgd_specifications.csv`](rapport/resultats/lgd_specifications.csv), D-047).
 - Remboursement anticipé : appris sur le boom de refinancement de 2001-2003,
   le modèle prévoit sur 2006-2010 trois fois plus de remboursements qu'il n'y
   en a eu ; il baisse la provision, surtout sur la durée de vie
@@ -61,9 +66,10 @@ perte publiée (D-044).
 - Stade 2 : jusqu'à fin 2008, le critère de dégradation (PD à maturité
   doublée) n'ajoute rien au retard de paiement ; en 2009-2010, la baisse des
   taux le fait se déclencher par intermittence, sans dégradation de crédit.
-- Scénarios : pondérés 50/30/20, ils changent la provision de moins de 4 % ;
-  12 % au plus avec une sensibilité chômage et prix tirée de la littérature,
-  publiée à part, que les prix soient nationaux ou par État.
+- Scénarios : ils agissent sur la PD par les taux et sur la LGD par les prix.
+  Pondérés 50/30/20, ils changent la provision de - 29 % (début 2006, prix en
+  hausse) à + 18 % (2008) ; de - 31 % à + 26 % avec une sensibilité chômage
+  et prix tirée de la littérature, publiée à part.
 
 La version 1, sans remboursement anticipé, reste publiée
 ([`stades_backtest.md`](rapport/resultats/stades_backtest.md), fichiers
@@ -93,11 +99,11 @@ ECL = Σ_s w_s Σ_{t=1..H} S_s(t-1) h_s(t) × LGD × EAD(t) × (1 + r/12)^(-t)
 | Brique | Choix |
 | --- | --- |
 | Défaut (stade 3) | 90 jours de retard ou plus, ou saisie du bien |
-| Stade 2 | 30 jours de retard, ou PD à maturité annualisée doublée depuis l'octroi |
+| Stade 2 | 30 jours de retard dans les 3 derniers mois, ou PD à maturité annualisée doublée depuis l'octroi |
 | Horizon | 12 mois en stade 1, durée de vie restante en stade 2 |
 | PD à 12 mois | Régression logistique de référence, LightGBM avec les mêmes variables |
 | PD à maturité | Survie en temps discret sur le panneau prêt-mois (table de mortalité du crédit) |
-| LGD | Probabilité de régularisation puis sévérité, calibrées sur les pertes réalisées |
+| LGD | Probabilité de régularisation puis sévérité, selon le ratio prêt / valeur réévalué aux prix de l'État ; recouvrement actualisé |
 | EAD | Capital restant dû selon l'amortissement contractuel |
 | Scénarios | Central 50 %, défavorable 30 %, favorable 20 % |
 | Actualisation | Taux contractuel du prêt |
