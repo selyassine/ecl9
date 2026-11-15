@@ -854,3 +854,65 @@ L'écart LightGBM / logistique change peu : + 49 % au 31/12/2007 (+ 47 %
 avant), + 25 % avec la coupure stricte de D-046. Les provisions d'avant cette
 revue restent publiées dans
 `rapport/resultats/trimestriel_figee_avant_revue_modeles.csv`.
+
+## 2026-11-15 — Points restés ouverts : sévérité de la LGD, prêts régularisés
+
+### D-052 Sévérité selon le ratio prêt / valeur : essai non retenu
+
+Après D-047, la sévérité des pertes reste sous-estimée de moitié (31 %
+prévue, 55 % réalisée). Essai : une forme structurelle, où la sévérité croît
+avec la part du capital non couverte par la valeur du bien,
+`a + b × (1 − 100 / CLTV réévaluée) − c × assurance`, ajustée sur les pertes
+d'avant 2006.
+
+Résultat : rien à apprendre. Sur l'entraînement, la sévérité ne croît pas
+avec la CLTV réévaluée, elle baisse (31 % sous 70, 14 % entre 90 et 100),
+parce que les prêts à forte LTV sont assurés ; aucune perte n'y a de CLTV
+réévaluée supérieure à 100. Sur la crise, la sévérité vaut 50 à 60 % dans
+**toutes** les tranches, y compris sous 70
+(`rapport/resultats/lgd_severite_par_cltv.csv`). L'écart est un changement de
+niveau commun à tous les prêts, pas un effet de la CLTV : la forme
+structurelle prévoit 31 % sur le test, comme la régression de D-047. La
+sévérité de D-047 est conservée et la limite reste publiée.
+
+### D-053 Prêts régularisés après un défaut : remis au bilan
+
+**Corrige la limite constatée en D-051.** Un prêt sorti de son premier défaut
+et encore au bilan à l'arrêté est désormais provisionné :
+
+- **hors défaut à l'arrêté** : stade 2, perte attendue sur la durée de vie
+  restante ;
+- **de nouveau en défaut** : stade 3, LGD actualisée × capital à l'arrêté,
+  avec le délai de résolution entier (D-049).
+
+Pour le stade 2, les modèles de PD et de survie ne s'appliquent pas : ils
+sont estimés sur des prêts jamais passés par le défaut. Une **table
+d'expérience** les remplace (`src/ecl9/regularises.py`) : hasards mensuels de
+nouveau défaut et de remboursement selon le nombre de mois écoulés depuis la
+régularisation, par bandes (1-3, 4-6, 7-12, 13-24, 25 et plus), estimés sur
+les prêts régularisés des millésimes 2000-2005 jusqu'à fin 2005. Le hasard de
+nouveau défaut va de 9,6 % par mois les trois premiers mois à 1,5 % après
+deux ans (`rapport/resultats/regularises_table.csv`). La LGD est celle de
+D-047 et D-049, à la CLTV de l'arrêté.
+
+Ces provisions sont identiques pour les deux modèles de PD et dans tous les
+scénarios, comme le stade 3. Les colonnes `dont_regularises_*` des résultats
+trimestriels les isolent. Pertes du backtest : la perte finale du prêt
+(D-027), chiffrée ou estimée (D-044).
+
+Contrôle hors période (`rapport/resultats/regularises_test.csv`) : sur
+2006-2010, la table prévoit 2 783 nouveaux défauts pour 2 795 observés ; elle
+en prévoit trop peu en 2008-2009 (985 pour 1 364) et trop en 2010 (1 733 pour
+1 366). Elle prévoit en revanche huit fois trop de remboursements (600 pour
+73), comme le modèle de remboursement des prêts sains.
+
+Effet : au 31/12/2007, 177 prêts et 30 M$ d'encours ajoutés, 2,4 M$ de
+provision ; au 31/12/2010, 4 428 prêts, 897 M$ d'encours (6,9 % du total) et
+148 M$ de provision. La provision totale au 31/12/2007 devient 15,1 M$
+(logistique) et 21,4 M$ (LightGBM). L'écart absolu entre les deux modèles
+est inchangé (6,2 M$) ; l'écart **relatif** baisse mécaniquement, de + 49 % à
++ 41 %, puisqu'une provision commune s'ajoute aux deux (+ 21 % avec la
+coupure stricte de D-046). Couverture des pertes chiffrées : 10 à 14 % au
+31/12/2007, 88 à 93 % au 31/12/2010.
+
+L'intervalle de D-042 est recalculé avec ces changements.

@@ -58,6 +58,8 @@ def bootstrap(log: np.ndarray, lgbm: np.ndarray, rng: np.random.Generator) -> pd
 
 def grille_seuils(d: pd.DataFrame) -> list[dict]:
     lignes = []
+    # Hors prêts régularisés après un défaut, en stade 2 par règle (D-053).
+    d = d[~d["regularise"]] if "regularise" in d else d
     actifs = d[d["stade_logistique"] < 3]
     encours = d["crd"].sum()
     retard = actifs["retard"] >= SEUIL_RETARD_STADE2

@@ -153,3 +153,61 @@ def test_lgd_actualisee_a_la_main():
     np.testing.assert_allclose(m.predire_actualisee(x, taux, ecoules), attendu)
     # L'actualisation ne peut qu'augmenter la LGD.
     assert (m.predire_actualisee(x, taux, ecoules) >= m.predire(x) - 1e-12).all()
+
+
+def test_regularises_etats_transitions_et_table():
+    from ecl9 import regularises as rg
+
+    na = None
+    s = _suivi(
+        [
+            # A : défaut en 2001-03, régularisé 2001-04 à 2001-06, nouveau défaut en 2001-07.
+            ("A", "2001-02", 100, "02", 1, na, na, na),
+            ("A", "2001-03", 100, "03", 2, na, na, na),
+            ("A", "2001-04", 100, "00", 3, na, na, na),
+            ("A", "2001-05", 100, "01", 4, na, na, na),
+            ("A", "2001-06", 100, "02", 5, na, na, na),
+            ("A", "2001-07", 100, "03", 6, na, na, na),
+            # B : défaut en 2001-03, régularisé, remboursé (01) en 2001-06.
+            ("B", "2001-03", 100, "03", 2, na, na, na),
+            ("B", "2001-04", 100, "00", 3, na, na, na),
+            ("B", "2001-05", 100, "00", 4, na, na, na),
+            ("B", "2001-06", 0, "00", 5, "01", na, 100),
+            # C : jamais en défaut, ignoré.
+            ("C", "2001-03", 100, "00", 2, na, na, na),
+        ]
+    )
+    e = rg.etats_apres_defaut(s)
+    assert set(e["loan_id"]) == {"A", "B"}
+    a = e[e["loan_id"] == "A"]
+    assert a["en_defaut"].tolist() == [True, False, False, False, True]
+    assert a["mois_depuis_regul"].tolist() == [0, 1, 2, 3, 0]
+    t = rg.transitions(e)
+    # A : 3 mois régularisés dont le dernier suivi d'un défaut ; B : 2 mois, le
+    # second suivi d'un remboursement (le mois du remboursement n'a pas de suite).
+    assert len(t) == 5
+    assert t["redefaut"].sum() == 1 and t["rembt"].sum() == 1
+    table = rg.table_hasards(t)
+    assert table["bande"].tolist() == list(rg.NOMS_BANDES)
+    # Bande 1-3 : 5 prêts-mois, 1 nouveau défaut, 1 remboursement.
+    assert table.loc[0, ["prets_mois", "redefauts", "remboursements"]].tolist() == [5, 1, 1]
+    assert table.loc[0, "hasard_redefaut"] == pytest.approx(0.2)
+    assert table.loc[1, "hasard_redefaut"] == 0.0
+
+
+def test_regularises_projection_suit_les_bandes():
+    from ecl9 import regularises as rg
+
+    table = pd.DataFrame(
+        {
+            "bande": rg.NOMS_BANDES,
+            "hasard_redefaut": [0.05, 0.04, 0.03, 0.02, 0.01],
+            "hasard_rembt": [0.0, 0.001, 0.002, 0.003, 0.004],
+        }
+    )
+    hd, hp = rg.projeter(table, np.array([2, 24]), 4)
+    # Prêt régularisé depuis 2 mois : mois 2, 3 (bande 1-3) puis 4, 5 (bande 4-6).
+    np.testing.assert_allclose(hd[0], [0.05, 0.05, 0.04, 0.04])
+    # Depuis 24 mois : mois 24 (bande 13-24) puis 25 et plus.
+    np.testing.assert_allclose(hd[1], [0.02, 0.01, 0.01, 0.01])
+    np.testing.assert_allclose(hp[1], [0.003, 0.004, 0.004, 0.004])

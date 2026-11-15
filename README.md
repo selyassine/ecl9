@@ -19,15 +19,15 @@
 > [`docs/decisions.md`](docs/decisions.md) before any model was fitted.
 > **Answer:** yes, but the effect is second-order. With everything else equal
 > (survival, prepayment, LGD, staging rule), LightGBM raises the allowance by
-> 30-51% between end-2006 and end-2008 (+49% at 31/12/2007; 95% interval +27%
-> to +80% when both models are re-estimated on bootstrap samples), and by
-> 7-10% in 2009-2010. The size of the gap depends on the training window: it
-> falls to +25% when the 2005 observation dates, whose labels mature in 2006,
-> are dropped. Yet both models, trained before the crisis, cover only 9-13% of
-> the losses later booked over the same horizon at end-2007 (7-10% once
-> defaults with no published loss are estimated). The LGD model matters more
-> than the PD algorithm: revaluing loan-to-value with state house prices
-> roughly doubles the allowance. Report and documentation are in
+> 28-41% between end-2006 and end-2008 (+41% at 31/12/2007, 95% interval +38%
+> to +45% on portfolio composition), and by 5-8% in 2009-2010. The size of the
+> gap depends on the training window: it falls to +21% when the 2005
+> observation dates, whose labels mature in 2006, are dropped. Yet both
+> models, trained before the crisis, cover only 10-14% of the losses later
+> booked over the same horizon at end-2007 (8-11% once defaults with no
+> published loss are estimated). The LGD model matters more than the PD
+> algorithm: revaluing loan-to-value with state house prices roughly doubles
+> the allowance. Report and documentation are in
 > French.
 
 **Note de provisionnement : <https://selyassine.github.io/ecl9/>**
@@ -35,18 +35,17 @@
 **Réponse : oui, LightGBM change la provision, toujours à la hausse avant la
 crise, mais beaucoup moins que l'erreur commune aux deux modèles.** Avec les
 mêmes variables, la même survie, le même remboursement anticipé, la même LGD
-et la même règle de stades, LightGBM provisionne 30 à 51 % de plus que la
-logistique entre fin 2006 et fin 2008. Au 31/12/2007, c'est 19,0 contre
-12,7 M$, soit + 49 % ; l'intervalle à 95 % est de + 45 à + 53 % sur la
-composition du portefeuille, et de + 27 à + 80 % en réestimant aussi les deux
-modèles (LightGBM au-dessus dans 100 tirages sur 100). L'écart retombe à 7 à
-10 % en 2009-2010, quand les défauts déjà survenus dominent. L'ampleur dépend
-de la fenêtre d'entraînement : sans les arrêtés de 2005, dont les étiquettes
-ne sont connues que fin 2006, l'écart tombe à + 25 % au 31/12/2007
+et la même règle de stades, LightGBM provisionne 28 à 41 % de plus que la
+logistique entre fin 2006 et fin 2008. Au 31/12/2007, c'est 21,4 contre
+15,1 M$, soit + 41 % (intervalle à 95 % sur la composition du portefeuille :
++ 38 à + 45 %). L'écart retombe à 5 à 8 % en 2009-2010, quand les défauts
+déjà survenus dominent. L'ampleur dépend de la fenêtre d'entraînement : sans
+les arrêtés de 2005, dont les étiquettes ne sont connues que fin 2006,
+l'écart tombe à + 21 % au 31/12/2007
 ([`coupure_stricte.csv`](rapport/resultats/coupure_stricte.csv), D-046). Mais
 entraînés sur 2000-2005, les deux modèles ne voient pas venir la crise : au
-31/12/2007, leurs provisions ne couvrent que 9 à 13 % des pertes chiffrées
-ensuite sur le même horizon, et 7 à 10 % en estimant les défauts sortis sans
+31/12/2007, leurs provisions ne couvrent que 10 à 14 % des pertes chiffrées
+ensuite sur le même horizon, et 8 à 11 % en estimant les défauts sortis sans
 perte publiée (D-044).
 
 - PD à 12 mois : LightGBM classe un peu mieux (AUC 0,815 contre 0,789 sur
@@ -68,8 +67,12 @@ perte publiée (D-044).
   taux le fait se déclencher par intermittence, sans dégradation de crédit.
 - Scénarios : ils agissent sur la PD par les taux et sur la LGD par les prix.
   Pondérés 50/30/20, ils changent la provision de - 29 % (début 2006, prix en
-  hausse) à + 18 % (2008) ; de - 31 % à + 26 % avec une sensibilité chômage
+  hausse) à + 16 % (2008) ; de - 31 % à + 24 % avec une sensibilité chômage
   et prix tirée de la littérature, publiée à part.
+- Prêts régularisés après un défaut : provisionnés en stade 2 avec une table
+  de re-défaut estimée avant 2006, qui prévoit 2 783 nouveaux défauts sur
+  2006-2010 pour 2 795 observés
+  ([`regularises_test.csv`](rapport/resultats/regularises_test.csv), D-053).
 
 La version 1, sans remboursement anticipé, reste publiée
 ([`stades_backtest.md`](rapport/resultats/stades_backtest.md), fichiers

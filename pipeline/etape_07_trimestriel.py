@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 from ecl9 import lgd as lgdm
-from ecl9 import macro, moteur, staging, survie
+from ecl9 import macro, moteur, regularises, staging, survie
 from ecl9 import pd as pdm
 from ecl9 import scenarios as sc
 from ecl9.definitions import (
@@ -42,6 +42,7 @@ TAILLE_LOT = 20_000
 REMBOURSEMENT = True
 PRIX_ETATS: pd.DataFrame | None = None  # indices FHFA par État (D-041, D-047)
 PRIX_NATIONAL: pd.Series | None = None  # indice national, repli des États sans indice
+TABLE_REGULARISES: pd.DataFrame | None = None  # hasards des prêts régularisés (D-053)
 
 
 def charger_prix() -> None:
@@ -167,6 +168,57 @@ def actifs(arrete: pd.Period, octroi, m) -> pd.DataFrame:
         .astype(int)
     )
     return p
+
+
+def regularises_arrete(arrete, etats, defauts, octroi, modele_lgd, table) -> pd.DataFrame:
+    """Prêts sortis de leur premier défaut et encore au bilan à l'arrêté (D-053).
+
+    Hors défaut à l'arrêté : stade 2, perte attendue à maturité avec la table
+    des prêts régularisés. De nouveau en défaut : stade 3, LGD actualisée ×
+    capital. Une ligne par prêt : stade, capital, provision et pertes du
+    backtest (la perte finale du prêt, D-027).
+    """
+    colonnes = ["loan_id", "stade", "crd", "ecl", "perte", "non_resolu", "perte_estimee"]
+    if etats is None or table is None:
+        return pd.DataFrame(columns=colonnes)
+    d = defauts[defauts["mois_fin_defaut"].notna() & (defauts["mois_fin_defaut"] <= arrete)]
+    e = etats[(etats["period"] == arrete) & etats["current_upb"].gt(0)]
+    e = e.merge(d, on="loan_id", how="inner", validate="one_to_one")
+    if e.empty:
+        return pd.DataFrame(columns=colonnes)
+    e = e.merge(
+        octroi[["loan_id", "orig_interest_rate", "orig_loan_term"]], on="loan_id", how="left"
+    )
+    crd = e["current_upb"].to_numpy(dtype=float)
+    taux = e["current_interest_rate"].fillna(e["orig_interest_rate"]).to_numpy(dtype=float) / 100
+    restants = (
+        e["remaining_months_to_maturity"]
+        .fillna(e["orig_loan_term"] - e["loan_age"])
+        .clip(lower=1)
+        .to_numpy(dtype=int)
+    )
+    lgd = lgd_actifs(modele_lgd, e[["loan_id", "current_upb", "loan_age"]], octroi, arrete, taux)
+    en_defaut = e["en_defaut"].to_numpy(dtype=bool)
+    stade = np.where(en_defaut, 3, 2)
+    n = int(restants.max())
+    hd, hp = regularises.projeter(table, e["mois_depuis_regul"].to_numpy(), n)
+    # La table donne directement les hasards : la PD à 12 mois visée est celle
+    # qu'ils impliquent, l'ancrage du moteur ne les modifie donc pas.
+    horizon = np.minimum(HORIZON_STADE1_MOIS, restants)
+    dedans = np.arange(n)[None, :] < horizon[:, None]
+    pd12 = moteur.incidence(np.where(dedans, hd, 0.0), np.where(dedans, hp, 0.0))[:, -1]
+    ecl = moteur.provisions(stade, crd, taux, restants, lgd, pd12, hd, hasards_rembt=hp)
+    return pd.DataFrame(
+        {
+            "loan_id": e["loan_id"].to_numpy(),
+            "stade": stade,
+            "crd": crd,
+            "ecl": ecl,
+            "perte": np.where(e["resolution"].eq("perte"), e["perte_montant"].astype(float), 0.0),
+            "non_resolu": e["resolution"].eq("non_resolu").to_numpy(),
+            "perte_estimee": e["perte_estimee"].to_numpy(dtype=float),
+        }
+    )[colonnes]
 
 
 def estimer_pertes_non_resolues(defauts: pd.DataFrame) -> pd.Series:
@@ -328,6 +380,9 @@ def calculer_arrete(
         a = a.reindex(d3["loan_id"]).to_numpy(dtype=float)
         crd3 = np.where(np.isfinite(a) & (a > 0), a, crd3)
 
+    # Prêts régularisés après un premier défaut, ou retombés en défaut (D-053).
+    reg = regularises_arrete(arrete, crd_defauts, defauts, octroi, modele_lgd, TABLE_REGULARISES)
+
     if hpi is None:
         # Détail par prêt (hors Git) pour le bootstrap et la grille de seuils.
         prets = pd.DataFrame(
@@ -353,9 +408,20 @@ def calculer_arrete(
                 **{f"ratio_{nom}": np.nan for nom in MODELES},
             }
         )
+        apres_regul = pd.DataFrame(
+            {
+                "loan_id": reg["loan_id"].to_numpy(),
+                "crd": reg["crd"].to_numpy(dtype=float),
+                "retard": np.nan,
+                **{f"stade_{nom}": reg["stade"].to_numpy(dtype=int) for nom in MODELES},
+                **{f"ecl_{nom}": reg["ecl"].to_numpy(dtype=float) for nom in MODELES},
+                **{f"ratio_{nom}": np.nan for nom in MODELES},
+            }
+        )
+        prets["regularise"], stade3["regularise"], apres_regul["regularise"] = False, False, True
         dossier = SORTIES / "trimestriel" / f"prets{suffixe_version()}"
         dossier.mkdir(parents=True, exist_ok=True)
-        pd.concat([prets, stade3], ignore_index=True).to_parquet(
+        pd.concat([prets, stade3, apres_regul], ignore_index=True).to_parquet(
             dossier / f"{arrete}.parquet", index=False
         )
 
@@ -385,32 +451,45 @@ def calculer_arrete(
             perte[masque], non_resolu[masque], estimee[masque] = pr, nr, es
         for s in (1, 2):
             masque = st == s
+            # Stade 2 : les prêts régularisés s'ajoutent, identiques pour les deux
+            # modèles et dans tous les scénarios (D-053).
+            r = reg[reg["stade"] == s]
             lignes.append(
                 {
                     "arrete": str(arrete),
                     "modele": nom,
                     "stade": s,
-                    "prets": int(masque.sum()),
-                    "encours": crd[masque].sum(),
-                    "ecl": ecl[masque].sum(),
-                    "pertes_constatees": perte[masque].sum(),
-                    "defauts_non_resolus": int(non_resolu[masque].sum()),
-                    "pertes_non_resolus_estimees": estimee[masque].sum(),
-                    **{c: v[masque].sum() for c, v in par_scenario.items()},
+                    "prets": int(masque.sum()) + len(r),
+                    "encours": crd[masque].sum() + r["crd"].sum(),
+                    "ecl": ecl[masque].sum() + r["ecl"].sum(),
+                    "pertes_constatees": perte[masque].sum() + r["perte"].sum(),
+                    "defauts_non_resolus": int(non_resolu[masque].sum())
+                    + int(r["non_resolu"].sum()),
+                    "pertes_non_resolus_estimees": estimee[masque].sum() + r["perte_estimee"].sum(),
+                    "dont_regularises_prets": len(r),
+                    "dont_regularises_encours": r["crd"].sum(),
+                    "dont_regularises_ecl": r["ecl"].sum(),
+                    **{c: v[masque].sum() + r["ecl"].sum() for c, v in par_scenario.items()},
                 }
             )
+        r3 = reg[reg["stade"] == 3]
         lignes.append(
             {
                 "arrete": str(arrete),
                 "modele": nom,
                 "stade": 3,
-                "prets": len(d3),
-                "encours": crd3.sum(),
-                "ecl": float(np.sum(lgd3 * crd3)),
-                "pertes_constatees": float(perte3.sum()),
-                "defauts_non_resolus": int(d3["resolution"].eq("non_resolu").sum()),
-                "pertes_non_resolus_estimees": float(d3["perte_estimee"].sum()),
-                **{c: float(np.sum(lgd3 * crd3)) for c in par_scenario},
+                "prets": len(d3) + len(r3),
+                "encours": crd3.sum() + r3["crd"].sum(),
+                "ecl": float(np.sum(lgd3 * crd3)) + r3["ecl"].sum(),
+                "pertes_constatees": float(perte3.sum()) + r3["perte"].sum(),
+                "defauts_non_resolus": int(d3["resolution"].eq("non_resolu").sum())
+                + int(r3["non_resolu"].sum()),
+                "pertes_non_resolus_estimees": float(d3["perte_estimee"].sum())
+                + r3["perte_estimee"].sum(),
+                "dont_regularises_prets": len(r3),
+                "dont_regularises_encours": r3["crd"].sum(),
+                "dont_regularises_ecl": r3["ecl"].sum(),
+                **{c: float(np.sum(lgd3 * crd3)) + r3["ecl"].sum() for c in par_scenario},
             }
         )
         # Par génération, à la fin de l'année d'octroi : tout à maturité (D-032).
@@ -440,6 +519,8 @@ def main(nom_trajectoire: str) -> None:
         else None
     )
     charger_prix()
+    global TABLE_REGULARISES
+    TABLE_REGULARISES = pd.read_pickle(SORTIES / "lgd" / "regularises.pkl")
     octroi = pd.read_parquet(INTER / "octroi.parquet")
     m = macro.charger(DOSSIER_DONNEES / "brut" / "fred")
     modeles = charger_modeles()

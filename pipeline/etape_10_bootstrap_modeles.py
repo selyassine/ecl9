@@ -44,7 +44,9 @@ def portefeuille(arrete, octroi, m, modeles, test):
     traj = e7.trajectoire_figee(m, arrete, n)
     taux = p["current_interest_rate"].to_numpy(dtype=float) / 100
     lgd = e7.lgd_actifs(lgd_, p, octroi, arrete, taux)
-    stade3 = detail[detail["stade_logistique"] == 3]["ecl_logistique"].to_numpy()
+    # Partie commune aux deux modèles : stade 3 et prêts régularisés (D-053).
+    commun = (detail["stade_logistique"] == 3) | detail["regularise"]
+    stade3 = detail[commun]["ecl_logistique"].to_numpy()
     return {
         "x": x,
         "stades": {nom: p[f"stade_{nom}"].to_numpy() for nom in e7.MODELES},

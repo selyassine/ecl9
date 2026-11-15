@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from ecl9 import donnees, lgd, macro
+from ecl9 import donnees, lgd, macro, regularises
 from ecl9.definitions import ANNEES_ENTRAINEMENT, ANNEES_TEST, DERNIER_ARRETE_ENTRAINEMENT
 from ecl9.telechargement import DOSSIER_DONNEES
 
@@ -25,14 +25,37 @@ FIN_RESOLUTION_APP = FIN_DEFAUT_APP + 12
 FIN_DEFAUT_TEST = pd.Period("2010-12", "M")
 
 
-def defauts_du_millesime(annee: int, fin_observation, crd_arretes: list | None = None):
-    """Défauts du millésime ; ``crd_arretes`` reçoit leur capital aux arrêtés (D-043)."""
+COLONNES_ETATS = [
+    "loan_id",
+    "period",
+    "current_upb",
+    "en_defaut",
+    "mois_depuis_regul",
+    "loan_age",
+    "remaining_months_to_maturity",
+    "current_interest_rate",
+]
+
+
+def defauts_du_millesime(
+    annee: int, fin_observation, etats_arretes: list | None = None, trans: list | None = None
+):
+    """Défauts du millésime et leur résolution.
+
+    ``etats_arretes`` reçoit l'état des prêts déjà passés par le défaut à
+    chaque arrêté trimestriel (D-043, D-053) ; ``trans`` reçoit leurs
+    transitions mensuelles après régularisation (D-053).
+    """
     s = donnees.lire_suivi(BRUT / f"sample_perf_{annee}.txt")
     r = donnees.resolutions_defaut(s, fin_observation)
-    if crd_arretes is not None:
-        t = s[s["loan_id"].isin(r["loan_id"]) & s["period"].dt.month.isin([3, 6, 9, 12])]
-        t = t[t["period"] >= t["loan_id"].map(r.set_index("loan_id")["mois_defaut"])]
-        crd_arretes.append(t[["loan_id", "period", "current_upb"]])
+    if etats_arretes is not None or trans is not None:
+        if fin_observation is not None:
+            s = s[s["period"] <= fin_observation]
+        e = regularises.etats_apres_defaut(s)
+        if etats_arretes is not None:
+            etats_arretes.append(e.loc[e["period"].dt.month.isin([3, 6, 9, 12]), COLONNES_ETATS])
+        if trans is not None:
+            trans.append(regularises.transitions(e))
     return r.assign(annee_octroi=annee)
 
 
@@ -64,6 +87,20 @@ def variables(defauts: pd.DataFrame, octroi: pd.DataFrame, etats, hpi) -> pd.Dat
         hpi,
     )
     return d.drop(columns=["orig_cltv", "property_state", "first_payment_date"])
+
+
+TRANCHES_CLTV = [0, 70, 80, 90, 100, 110, 130, np.inf]
+
+
+def severite_par_tranche(defauts: pd.DataFrame) -> pd.DataFrame:
+    """Sévérité moyenne des pertes par tranche de CLTV réévaluée et échantillon (D-052)."""
+    p = defauts[defauts["resolution"].eq("perte")]
+    tranche = pd.cut(p["cltv_reevaluee"], TRANCHES_CLTV, right=False)
+    t = p.groupby([tranche, "echantillon"], observed=True)["severite"].agg(["size", "mean"])
+    t = t.unstack("echantillon")  # noqa: PD010
+    t.columns = [f"{'pertes' if a == 'size' else 'severite_moyenne'}_{b}" for a, b in t.columns]
+    t.index = t.index.astype(str)
+    return t.rename_axis("cltv_reevaluee").reset_index()
 
 
 def specifications(app: pd.DataFrame, test: pd.DataFrame, m: pd.DataFrame) -> pd.DataFrame:
@@ -137,14 +174,17 @@ def main() -> None:
     SORTIE.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
     octroi = pd.read_parquet(DOSSIER_DONNEES / "intermediaire" / "octroi.parquet")
+    trans_app: list = []
     app = pd.concat(
-        [defauts_du_millesime(a, FIN_RESOLUTION_APP) for a in ANNEES_ENTRAINEMENT],
+        [defauts_du_millesime(a, FIN_RESOLUTION_APP, trans=trans_app) for a in ANNEES_ENTRAINEMENT],
         ignore_index=True,
     )
     app = app[app["mois_defaut"] <= FIN_DEFAUT_APP]
-    crd_arretes: list = []
+    etats_arretes: list = []
+    trans_test: list = []
     test = pd.concat(
-        [defauts_du_millesime(a, None, crd_arretes) for a in ANNEES_TEST], ignore_index=True
+        [defauts_du_millesime(a, None, etats_arretes, trans_test) for a in ANNEES_TEST],
+        ignore_index=True,
     )
     test = test[test["mois_defaut"].dt.year.between(2006, FIN_DEFAUT_TEST.year)]
     dossier_fred = DOSSIER_DONNEES / "brut" / "fred"
@@ -183,11 +223,44 @@ def main() -> None:
         mois_resolution=toutes["mois_resolution"].dt.to_timestamp(),
         mois_fin_defaut=toutes["mois_fin_defaut"].dt.to_timestamp(),
     ).to_parquet(DOSSIER_DONNEES / "intermediaire" / "defauts.parquet", index=False)
-    # Capital des prêts en défaut à chaque arrêté trimestriel, pour le stade 3 (D-043).
-    crd = pd.concat(crd_arretes, ignore_index=True)
-    crd.assign(period=crd["period"].dt.to_timestamp()).to_parquet(
+    # État des prêts passés par le défaut à chaque arrêté trimestriel (D-043, D-053).
+    etats = pd.concat(etats_arretes, ignore_index=True)
+    etats.assign(period=etats["period"].dt.to_timestamp()).to_parquet(
         DOSSIER_DONNEES / "intermediaire" / "crd_defauts_arretes.parquet", index=False
     )
+
+    # Table des prêts régularisés (D-053) : transitions jusqu'à fin 2005 seulement.
+    t_app = pd.concat(trans_app, ignore_index=True)
+    t_app = t_app[t_app["period"] < FIN_DEFAUT_APP]
+    table = regularises.table_hasards(t_app)
+    with open(SORTIE / "regularises.pkl", "wb") as f:
+        pickle.dump(table, f)
+    table.to_csv(RESULTATS / "regularises_table.csv", index=False)
+    print(table.round(4).to_string(index=False))
+    t_test = pd.concat(trans_test, ignore_index=True)
+    t_test = t_test[
+        (t_test["period"] >= pd.Period("2006-01", "M")) & (t_test["period"] < FIN_DEFAUT_TEST)
+    ]
+    b = regularises.bande(t_test["mois_depuis_regul"].to_numpy())
+    controle = pd.DataFrame(
+        {
+            "annee": t_test["period"].dt.year.to_numpy(),
+            "redefaut": t_test["redefaut"].to_numpy(),
+            "rembt": t_test["rembt"].to_numpy(),
+            "redefaut_attendu": table["hasard_redefaut"].to_numpy()[b],
+            "rembt_attendu": table["hasard_rembt"].to_numpy()[b],
+        }
+    )
+    controle = controle.groupby("annee").agg(
+        prets_mois=("redefaut", "size"),
+        redefauts_observes=("redefaut", "sum"),
+        redefauts_attendus=("redefaut_attendu", "sum"),
+        remboursements_observes=("rembt", "sum"),
+        remboursements_attendus=("rembt_attendu", "sum"),
+    )
+    controle.to_csv(RESULTATS / "regularises_test.csv")
+    print(controle.round(1).to_string())
+    severite_par_tranche(toutes).to_csv(RESULTATS / "lgd_severite_par_cltv.csv", index=False)
     print(f"Terminé en {time.time() - t0:.0f} s")
 
 
