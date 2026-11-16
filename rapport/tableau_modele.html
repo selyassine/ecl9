@@ -10,15 +10,15 @@
 <style>
 /* Mise en page : un rail fixe à gauche porte le filtre unique (l'arrêté), le sommaire et le code
    couleur ; le récit défile à droite en sept chapitres. Une couleur = un rôle, partout :
-   bleu logistique, orange LightGBM, clair observé, vert prévu, violets pour les stades,
-   dégradé bleu-neutre-orange pour tout écart. */
+   turquoise logistique, rose LightGBM, encre pour l'observé, violet pour le prévu, bleus ardoise
+   pour les stades, dégradé turquoise-neutre-rose pour tout écart. */
 :root {
-  color-scheme: dark;
-  --fond: #090c18; --panneau: #12162a; --panneau-2: #1a2040; --creux: #0d1122;
-  --texte: #eef0f8; --texte-2: #a7aec8; --discret: #6e7798; --trait: rgba(255,255,255,0.07); --axe: rgba(255,255,255,0.20); --bord: rgba(255,255,255,0.09);
-  --logistique: #3987e5; --lightgbm: #e0622d; --observe: #dfe3f0; --prevue: #199e70;
-  --s1: #4f558c; --s2: #8b7cf2; --s3: #e2dcff;
-  --neutre: #262b47;
+  color-scheme: light;
+  --fond: #f4f6fa; --panneau: #ffffff; --panneau-2: #eef1f7; --creux: #f9fafc;
+  --texte: #101a2e; --texte-2: #4d5873; --discret: #7c869f; --trait: rgba(16,26,46,0.08); --axe: rgba(16,26,46,0.24); --bord: rgba(16,26,46,0.10);
+  --logistique: #00979a; --lightgbm: #d9365f; --observe: #101a2e; --prevue: #6250d6;
+  --s1: #a9b4d6; --s2: #6c7ab5; --s3: #2f3b73;
+  --neutre: #e6e9f0;
   --titre: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --corps: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --chiffres: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -46,7 +46,7 @@ button { font: inherit; color: inherit; }
 .pilote .date { font: 700 22px/1.1 var(--titre); letter-spacing: -0.02em; }
 .pilote .commandes { display: flex; gap: 6px; align-items: center; }
 .rond { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--axe); background: transparent; cursor: pointer; display: grid; place-items: center; padding: 0; flex: none; }
-.rond:hover { background: rgba(255,255,255,0.08); }
+.rond:hover { background: rgba(16,26,46,0.06); }
 .rond.lecture { background: var(--texte); border-color: var(--texte); color: var(--fond); margin-left: auto; width: auto; border-radius: 999px; padding: 0 14px 0 10px; display: flex; gap: 6px; font-size: 13px; font-weight: 600; }
 .rond svg { width: 14px; height: 14px; fill: currentColor; }
 input[type=range] { accent-color: var(--s2); width: 100%; margin: 0; }
@@ -76,7 +76,7 @@ main { margin-left: var(--rail); }
 }
 
 /* Ouverture */
-.ouverture { background: radial-gradient(700px 380px at 12% -8%, rgba(57,135,229,0.20), transparent 70%), radial-gradient(700px 420px at 92% 0%, rgba(224,98,45,0.18), transparent 70%); border-bottom: 1px solid var(--bord); }
+.ouverture { background: radial-gradient(700px 380px at 12% -8%, rgba(0,151,154,0.13), transparent 70%), radial-gradient(700px 420px at 92% 0%, rgba(217,54,95,0.11), transparent 70%); border-bottom: 1px solid var(--bord); }
 .ouverture .cadre { padding-block: clamp(32px, 5vw, 64px) 32px; display: grid; gap: 28px; }
 .duo-ouverture { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(24px, 4vw, 48px); align-items: center; }
 @media (max-width: 860px) { .duo-ouverture { grid-template-columns: minmax(0, 1fr); } }
@@ -104,7 +104,7 @@ section.bloc { padding-block: clamp(44px, 6vw, 80px) 0; }
 .deux { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .tiers { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); }
 @media (max-width: 860px) { .deux, .tiers { grid-template-columns: minmax(0, 1fr); } }
-.carte { background: var(--panneau); border: 1px solid var(--bord); border-radius: 16px; padding: 20px; min-width: 0; }
+.carte { background: var(--panneau); border: 1px solid var(--bord); border-radius: 16px; padding: 20px; min-width: 0; box-shadow: 0 1px 2px rgba(16,26,46,0.04), 0 10px 28px rgba(16,26,46,0.05); }
 .sous { color: var(--texte-2); font-size: 14px; margin: 4px 0 12px; }
 .legende { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: 13px; color: var(--texte-2); margin-bottom: 8px; }
 .cle { display: inline-block; width: 16px; height: 0; border-top: 3px solid; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
@@ -177,7 +177,7 @@ section.bloc { padding-block: clamp(44px, 6vw, 80px) 0; }
 @keyframes trace { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 .graphique path.trace { stroke-dasharray: 1; animation: trace 1.4s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .graphique path.trace { animation: none; stroke-dasharray: none; } html { scroll-behavior: auto; } }
-.bulle { position: absolute; top: 0; pointer-events: none; background: var(--panneau-2); border: 1px solid var(--axe); border-radius: 10px; padding: 9px 11px; font-size: 13px; box-shadow: 0 8px 26px rgba(0,0,0,0.45); white-space: nowrap; display: none; z-index: 3; }
+.bulle { position: absolute; top: 0; pointer-events: none; background: var(--panneau-2); border: 1px solid var(--axe); border-radius: 10px; padding: 9px 11px; font-size: 13px; box-shadow: 0 8px 26px rgba(16,26,46,0.16); white-space: nowrap; display: none; z-index: 3; }
 .bulle .titre { color: var(--texte-2); margin-bottom: 4px; }
 .bulle .ligne { display: flex; align-items: center; gap: 4px; }
 .bulle b { margin-right: 6px; font: 500 13px var(--chiffres); }
@@ -361,7 +361,7 @@ footer b { color: var(--texte); }
       </div>
       <div class="formule">
         <span class="eq">Provision = Σ<sub>mois</sub> <em>PD</em> × LGD × Encours × Actualisation</span>
-        <span class="legende-eq">Seul le terme en orange change d'un modèle à l'autre.</span>
+        <span class="legende-eq">Seul le terme en rose change d'un modèle à l'autre.</span>
       </div>
     </div>
   </section>
@@ -467,7 +467,7 @@ footer b { color: var(--texte); }
     <div class="grille tiers">
       <div class="carte">
         <h3>Poids des scénarios au <span class="date-arrete"></span></h3>
-        <div class="sous">La couleur donne l'écart de la provision pondérée à la provision à macro figée. Du bleu (moins que la macro figée) à l'orange (plus). Cercle pointillé : pondération publiée.</div>
+        <div class="sous">La couleur donne l'écart de la provision pondérée à la provision à macro figée. Du turquoise (moins que la macro figée) au rose (plus). Cercle pointillé : pondération publiée.</div>
         <div class="triangle" id="triangle" role="img" aria-label="Triangle des pondérations de scénarios"></div>
         <div class="curseurs">
           <label for="p-central">Central</label><input type="range" id="p-central" min="0" max="100" value="50"><output id="o-central"></output>
@@ -569,7 +569,7 @@ const NOM = { logistique: "Logistique", lightgbm: "LightGBM" };
 const COULEUR = { logistique: "var(--logistique)", lightgbm: "var(--lightgbm)" };
 const STADES = ["1", "2", "3"];
 const NOM_STADE = { 1: "Sain", 2: "Dégradé", 3: "En défaut" };
-const TEXTE_STADE = { 1: "#eef0f8", 2: "#0b0e1c", 3: "#0b0e1c" };
+const TEXTE_STADE = { 1: "#101a2e", 2: "#ffffff", 3: "#ffffff" };
 const HORIZON = { 1: "Pertes attendues à 12 mois", 2: "Pertes attendues jusqu'à l'échéance", 3: "Défaut avéré, perte à terminaison" };
 const SCENARIOS = ["central", "defavorable", "favorable"];
 const MOIS = { "03": "mars", "06": "juin", "09": "septembre", "12": "décembre" };
@@ -604,7 +604,7 @@ const dateCourte = (a) => { const [an, m] = a.split("-"); return "T" + (+m / 3) 
 const somme = (modele, champ, i) => STADES.reduce((s, st) => s + D.par_stade[modele][st][champ][i], 0);
 const serie = (modele, champ) => D.arretes.map((_, j) => somme(modele, champ, j));
 
-/* Dégradé commun à tous les écarts : bleu (plus bas), neutre (nul), orange (plus haut). */
+/* Dégradé commun à tous les écarts : couleur de la logistique (plus bas), neutre (nul), couleur de LightGBM (plus haut). */
 const rvb = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
 const BAS = rvb(css("--logistique")), MILIEU = rvb(css("--neutre")), HAUT = rvb(css("--lightgbm"));
 function couleurEcart(v, borne) {
@@ -745,7 +745,7 @@ function points(i) {
   for (let k = 0; k < CASES; k++) {
     const cx = (k % colonnes) * pas + pas / 2, cy = Math.floor(k / colonnes) * pas + pas / 2;
     c.beginPath(); c.arc(cx, cy, rayon, 0, 6.2832);
-    if (k >= actifs) { c.fillStyle = "rgba(255,255,255,0.045)"; c.fill(); continue; }
+    if (k >= actifs) { c.fillStyle = "rgba(16,26,46,0.07)"; c.fill(); continue; }
     const stade = RANGS[k] < p3 ? 2 : RANGS[k] < p3 + p2 ? 1 : 0;
     c.fillStyle = teintes[stade]; c.fill();
   }
