@@ -8,168 +8,191 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Mise en page : un bandeau nuit pour la thèse, puis un récit en sections sur papier froid ;
-   la barre haute porte le seul filtre (l'arrêté), qui pilote toute la page. */
+/* Mise en page : un rail fixe à gauche porte le filtre unique (l'arrêté), le sommaire et le code
+   couleur ; le récit défile à droite en sept chapitres. Une couleur = un rôle, partout :
+   bleu logistique, orange LightGBM, clair observé, vert prévu, violets pour les stades,
+   dégradé bleu-neutre-orange pour tout écart. */
 :root {
-  color-scheme: light;
-  --fond: #f2f4f7; --surface: #ffffff; --texte: #101a26; --texte-2: #4a5766; --discret: #7b8794;
-  --trait: #dfe4ea; --axe: #c3cbd4; --bord: rgba(16,26,38,0.10); --ombre: 0 1px 2px rgba(16,26,38,0.05), 0 8px 24px rgba(16,26,38,0.06);
-  --logistique: #2a78d6; --lightgbm: #eb6834; --prevue: #1baf7a; --observe: #4a5766;
-  --s1: #b3bfcc; --s2: #6c7f93; --s3: #2f4257; --s1-t: #101a26; --s2-t: #ffffff; --s3-t: #ffffff;
-  --nuit: #0b1724; --nuit-2: #12243a; --nuit-texte: #eef2f6; --nuit-texte-2: #a9b7c6;
+  color-scheme: dark;
+  --fond: #090c18; --panneau: #12162a; --panneau-2: #1a2040; --creux: #0d1122;
+  --texte: #eef0f8; --texte-2: #a7aec8; --discret: #6e7798; --trait: rgba(255,255,255,0.07); --axe: rgba(255,255,255,0.20); --bord: rgba(255,255,255,0.09);
+  --logistique: #3987e5; --lightgbm: #e0622d; --observe: #dfe3f0; --prevue: #199e70;
+  --s1: #4f558c; --s2: #8b7cf2; --s3: #e2dcff;
+  --neutre: #262b47;
   --titre: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --corps: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --chiffres: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --fond: #08111b; --surface: #101c2a; --texte: #e9eef3; --texte-2: #a9b6c3; --discret: #7b8794;
-    --trait: #1e2d3f; --axe: #31445a; --bord: rgba(255,255,255,0.09); --ombre: 0 1px 2px rgba(0,0,0,0.3);
-    --logistique: #3987e5; --lightgbm: #d95926; --prevue: #199e70; --observe: #a9b6c3;
-    --s1: #d3dbe4; --s2: #8d9eb0; --s3: #54687e; --s1-t: #101a26; --s2-t: #101a26; --s3-t: #ffffff;
-  }
+  --rail: 264px;
 }
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
 body { margin: 0; background: var(--fond); color: var(--texte); font: 16px/1.55 var(--corps); }
-.cadre { max-width: 1160px; margin: 0 auto; padding-inline: max(16px, 4vw); }
 h1, h2, h3 { font-family: var(--titre); text-wrap: balance; margin: 0; }
-h1 { font-size: clamp(30px, 4.6vw, 54px); line-height: 1.05; font-weight: 700; letter-spacing: -0.02em; }
-h2 { font-size: clamp(24px, 3vw, 34px); line-height: 1.12; font-weight: 700; letter-spacing: -0.015em; }
-h3 { font-size: 18px; line-height: 1.25; font-weight: 700; }
+h1 { font-size: clamp(30px, 3.3vw, 46px); line-height: 1.04; font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: clamp(24px, 2.8vw, 34px); line-height: 1.12; font-weight: 700; letter-spacing: -0.015em; }
+h3 { font-size: 17px; line-height: 1.25; font-weight: 700; }
 p { margin: 0; }
 a { color: inherit; }
-.surtitre { font: 500 12.5px/1.2 var(--chiffres); letter-spacing: 0.09em; text-transform: uppercase; color: var(--discret); }
-.chiffre { font-family: var(--chiffres); font-variant-numeric: tabular-nums; }
-:focus-visible { outline: 2px solid var(--lightgbm); outline-offset: 2px; }
+.mono { font: 500 12px/1.2 var(--chiffres); letter-spacing: 0.09em; text-transform: uppercase; color: var(--discret); }
+:focus-visible { outline: 2px solid var(--s2); outline-offset: 2px; }
+button { font: inherit; color: inherit; }
 
-/* Barre haute */
-.barre-haute { position: sticky; top: 0; z-index: 20; background: var(--nuit); color: var(--nuit-texte); border-bottom: 1px solid rgba(255,255,255,0.08); }
-.barre-haute .cadre { display: flex; align-items: center; gap: 20px; height: 56px; }
-.marque { font: 700 20px/1 var(--titre); letter-spacing: -0.02em; text-decoration: none; }
+/* Rail */
+.rail { position: fixed; inset: 0 auto 0 0; width: var(--rail); background: var(--creux); border-right: 1px solid var(--bord); padding: 22px 20px; display: flex; flex-direction: column; gap: 22px; overflow-y: auto; z-index: 20; }
+.marque { font: 700 24px/1 var(--titre); letter-spacing: -0.03em; text-decoration: none; }
 .marque i { color: var(--lightgbm); font-style: normal; }
-.barre-haute nav { display: flex; gap: 18px; font-size: 14px; flex: 1; min-width: 0; overflow: hidden; }
-.barre-haute nav a { text-decoration: none; color: var(--nuit-texte-2); white-space: nowrap; }
-.barre-haute nav a:hover { color: var(--nuit-texte); }
-.pilote { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-.pilote .date { font: 500 13.5px/1 var(--chiffres); min-width: 13ch; text-align: center; }
-.rond { width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.22); background: transparent; color: var(--nuit-texte); cursor: pointer; display: grid; place-items: center; padding: 0; }
-.rond:hover { background: rgba(255,255,255,0.10); }
-.rond.lecture { background: var(--lightgbm); border-color: var(--lightgbm); color: #fff; }
+.marque small { display: block; font: 400 12px/1.3 var(--corps); letter-spacing: 0; color: var(--discret); margin-top: 6px; }
+.pilote { background: var(--panneau); border: 1px solid var(--bord); border-radius: 14px; padding: 14px; display: grid; gap: 10px; }
+.pilote .date { font: 700 22px/1.1 var(--titre); letter-spacing: -0.02em; }
+.pilote .commandes { display: flex; gap: 6px; align-items: center; }
+.rond { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--axe); background: transparent; cursor: pointer; display: grid; place-items: center; padding: 0; flex: none; }
+.rond:hover { background: rgba(255,255,255,0.08); }
+.rond.lecture { background: var(--texte); border-color: var(--texte); color: var(--fond); margin-left: auto; width: auto; border-radius: 999px; padding: 0 14px 0 10px; display: flex; gap: 6px; font-size: 13px; font-weight: 600; }
 .rond svg { width: 14px; height: 14px; fill: currentColor; }
-@media (max-width: 860px) { .barre-haute nav { display: none; } }
+input[type=range] { accent-color: var(--s2); width: 100%; margin: 0; }
+.sommaire { display: grid; gap: 2px; }
+.sommaire a { display: flex; gap: 12px; align-items: baseline; padding: 7px 10px; border-radius: 8px; text-decoration: none; color: var(--texte-2); font-size: 14.5px; }
+.sommaire a span { font: 500 11.5px var(--chiffres); color: var(--discret); }
+.sommaire a:hover { color: var(--texte); }
+.sommaire a.actif { background: var(--panneau-2); color: var(--texte); }
+.sommaire a.actif span { color: var(--s2); }
+.code-couleur { display: grid; gap: 7px; font-size: 13px; color: var(--texte-2); }
+.code-couleur div { display: flex; align-items: center; gap: 9px; }
+.pastille-c { width: 12px; height: 12px; border-radius: 4px; flex: none; }
+.degrade { height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--logistique), var(--neutre), var(--lightgbm)); }
+.echelle { display: flex; justify-content: space-between; font: 11px var(--chiffres); color: var(--discret); }
+.rail .liens { margin-top: auto; display: grid; gap: 6px; font-size: 13.5px; }
+.rail .liens a { color: var(--texte-2); }
+main { margin-left: var(--rail); }
+.cadre { max-width: 1120px; margin: 0 auto; padding-inline: max(16px, 3.4vw); }
+@media (max-width: 1100px) {
+  .rail { position: sticky; inset: 0 0 auto 0; width: auto; flex-direction: row; align-items: center; padding: 8px max(16px, 3.4vw); gap: 12px; border-right: 0; border-bottom: 1px solid var(--bord); overflow: visible; }
+  .rail .sommaire, .rail .code-couleur, .rail .liens, .rail .mono, .marque small, .pilote input, .rond.lecture b { display: none; }
+  .pilote { margin-left: auto; padding: 0; background: none; border: 0; display: flex; align-items: center; }
+  .pilote .date { font: 500 13.5px var(--chiffres); letter-spacing: 0; min-width: 8ch; text-align: right; }
+  .rond.lecture { padding: 0; width: 34px; justify-content: center; margin-left: 0; }
+  main { margin-left: 0; }
+  html { scroll-padding-top: 64px; }
+}
 
-/* Bandeau d'ouverture : toujours nuit, ses graphiques lisent des jetons redéfinis ici */
-.ouverture { background: radial-gradient(1200px 500px at 85% -10%, #1b3553 0%, transparent 60%), var(--nuit); color: var(--nuit-texte);
-  --texte: #eef2f6; --texte-2: #a9b7c6; --discret: #8494a5; --trait: rgba(255,255,255,0.09); --axe: rgba(255,255,255,0.22);
-  --surface: #0b1724; --lightgbm: #f0703c; --logistique: #4a94ee; --bord: rgba(255,255,255,0.14); }
-.ouverture .cadre { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: clamp(24px, 4vw, 56px); padding-block: clamp(36px, 6vw, 72px) 28px; align-items: center; }
-@media (max-width: 900px) { .ouverture .cadre { grid-template-columns: minmax(0, 1fr); } }
-.ouverture .surtitre { color: var(--nuit-texte-2); margin-bottom: 16px; }
-.reponse { display: flex; align-items: baseline; gap: 18px; margin-top: 28px; flex-wrap: wrap; }
-.reponse .grand { font: 700 clamp(64px, 10vw, 112px)/0.9 var(--titre); letter-spacing: -0.04em; color: var(--lightgbm); }
-.reponse p { max-width: 30ch; color: var(--nuit-texte-2); font-size: 15.5px; }
-.reponse p b { color: var(--nuit-texte); font-weight: 600; }
-.actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
-.bouton { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; font: 500 14.5px/1 var(--corps); text-decoration: none; border: 1px solid rgba(255,255,255,0.25); color: var(--nuit-texte); background: transparent; cursor: pointer; }
-.bouton.plein { background: var(--nuit-texte); color: var(--nuit); border-color: var(--nuit-texte); }
-.bouton:hover { border-color: #fff; }
-.tableau-ouverture { border: 1px solid var(--bord); border-radius: 16px; padding: 18px 18px 12px; background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.01)); }
-.tableau-ouverture h3 { font-size: 16px; }
-.tableau-ouverture .note { color: var(--nuit-texte-2); font-size: 13px; margin: 2px 0 8px; }
-.reperes { list-style: none; margin: 8px 0 0; padding: 0; display: flex; gap: 6px 18px; flex-wrap: wrap; font-size: 12.5px; color: var(--nuit-texte-2); }
-.pastille { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; border: 1px solid currentColor; font: 500 10.5px/1 var(--chiffres); margin-right: 6px; }
-.reperes-clair { color: var(--texte-2); }
-.faits { border-top: 1px solid rgba(255,255,255,0.10); }
-.faits .cadre { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding-block: 20px 24px; }
-@media (max-width: 700px) { .faits .cadre { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Ouverture */
+.ouverture { background: radial-gradient(700px 380px at 12% -8%, rgba(57,135,229,0.20), transparent 70%), radial-gradient(700px 420px at 92% 0%, rgba(224,98,45,0.18), transparent 70%); border-bottom: 1px solid var(--bord); }
+.ouverture .cadre { padding-block: clamp(32px, 5vw, 64px) 32px; display: grid; gap: 28px; }
+.duo-ouverture { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(24px, 4vw, 48px); align-items: center; }
+@media (max-width: 860px) { .duo-ouverture { grid-template-columns: minmax(0, 1fr); } }
+.reponse { display: flex; align-items: flex-end; gap: 18px; margin-top: 24px; flex-wrap: wrap; }
+.reponse .grand { font: 700 clamp(72px, 10vw, 124px)/0.86 var(--titre); letter-spacing: -0.045em; color: var(--lightgbm); }
+.reponse p { max-width: 31ch; color: var(--texte-2); font-size: 15.5px; }
+.reponse p b { color: var(--texte); font-weight: 600; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; }
+.bouton { display: inline-flex; align-items: center; padding: 10px 16px; border-radius: 999px; font: 500 14.5px/1 var(--corps); text-decoration: none; border: 1px solid var(--axe); }
+.bouton.plein { background: var(--texte); color: var(--fond); border-color: var(--texte); }
+.bouton:hover { border-color: var(--texte); }
+.faits { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--bord); border: 1px solid var(--bord); border-radius: 14px; overflow: hidden; }
+@media (max-width: 700px) { .faits { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.fait { background: var(--creux); padding: 16px 18px; }
 .fait b { display: block; font: 700 26px/1.1 var(--titre); letter-spacing: -0.02em; }
-.fait span { font-size: 13px; color: var(--nuit-texte-2); }
+.fait span { font-size: 13px; color: var(--texte-2); }
 
-/* Sections */
-section.bloc { padding-block: clamp(40px, 6vw, 72px) 0; }
-.tete { display: grid; gap: 10px; margin-bottom: 24px; max-width: 68ch; }
+/* Sections et panneaux */
+section.bloc { padding-block: clamp(44px, 6vw, 80px) 0; }
+.tete { display: grid; gap: 10px; margin-bottom: 24px; max-width: 66ch; }
+.tete .mono b { color: var(--s2); font-weight: 500; margin-right: 10px; }
 .tete p { color: var(--texte-2); }
 .grille { display: grid; gap: 16px; }
+.grille + .grille, .grille + .carte, .carte + .grille { margin-top: 16px; }
 .deux { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-@media (max-width: 900px) { .deux { grid-template-columns: minmax(0, 1fr); } }
-.carte { background: var(--surface); border: 1px solid var(--bord); border-radius: 16px; padding: 20px; min-width: 0; box-shadow: var(--ombre); }
-.carte > h3 + .sous { margin-top: 4px; }
-.sous { color: var(--texte-2); font-size: 14px; margin-bottom: 12px; }
+.tiers { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); }
+@media (max-width: 860px) { .deux, .tiers { grid-template-columns: minmax(0, 1fr); } }
+.carte { background: var(--panneau); border: 1px solid var(--bord); border-radius: 16px; padding: 20px; min-width: 0; }
+.sous { color: var(--texte-2); font-size: 14px; margin: 4px 0 12px; }
+.legende { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: 13px; color: var(--texte-2); margin-bottom: 8px; }
+.cle { display: inline-block; width: 16px; height: 0; border-top: 3px solid; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.cle.bande { height: 10px; border: 0; opacity: 0.3; }
+.cle.plein { height: 10px; width: 10px; border: 0; border-radius: 3px; }
+.reperes { list-style: none; margin: 8px 0 0; padding: 0; display: flex; gap: 6px 18px; flex-wrap: wrap; font-size: 12.5px; color: var(--texte-2); }
+.pastille { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; border: 1px solid currentColor; font: 500 10.5px/1 var(--chiffres); margin-right: 6px; }
+
+/* Portefeuille en points */
+.portefeuille canvas { display: block; width: 100%; }
+.compte { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.compte div { border-top: 3px solid; padding-top: 8px; }
+.compte b { display: block; font: 700 22px/1.1 var(--titre); letter-spacing: -0.02em; }
+.compte span { font-size: 12.5px; color: var(--texte-2); }
 
 /* Méthode */
-.chaine { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; counter-reset: etape; }
-.etape { position: relative; padding: 20px 18px 20px 0; counter-increment: etape; }
+.chaine { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); counter-reset: etape; }
+.etape { padding: 4px 18px 4px 0; counter-increment: etape; }
 .etape + .etape { padding-left: 18px; border-left: 1px solid var(--trait); }
-.etape .icone { width: 46px; height: 46px; border-radius: 12px; background: var(--nuit); display: grid; place-items: center; margin-bottom: 14px; }
-.etape .icone svg { width: 26px; height: 26px; fill: none; stroke: #eef2f6; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.etape .icone svg .a { stroke: #f0703c; }
-.etape .icone svg .b { stroke: #4a94ee; }
+.etape .icone { width: 46px; height: 46px; border-radius: 12px; background: var(--panneau-2); border: 1px solid var(--bord); display: grid; place-items: center; margin-bottom: 14px; }
+.etape .icone svg { width: 26px; height: 26px; fill: none; stroke: var(--texte); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.etape .icone svg .a { stroke: var(--lightgbm); }
+.etape .icone svg .b { stroke: var(--logistique); }
 .etape .rang::before { content: "Étape " counter(etape); }
-.etape h3 { margin: 4px 0 6px; font-size: 17px; }
+.etape h3 { margin: 4px 0 6px; }
 .etape p { font-size: 14px; color: var(--texte-2); }
-@media (max-width: 900px) {
+@media (max-width: 860px) {
   .chaine { grid-template-columns: minmax(0, 1fr); }
   .etape, .etape + .etape { display: grid; grid-template-columns: 46px minmax(0, 1fr); column-gap: 14px; padding: 14px 0; border-left: 0; }
   .etape + .etape { border-top: 1px solid var(--trait); }
   .etape .icone { grid-row: span 3; margin: 0; }
 }
-.formule { margin-top: 8px; padding: 18px 20px; border-radius: 12px; background: var(--nuit); color: #eef2f6; display: flex; gap: 10px 22px; align-items: center; flex-wrap: wrap; }
-.formule .eq { font: 500 clamp(15px, 2vw, 19px)/1.4 var(--chiffres); }
-.formule .eq em { font-style: normal; color: #f0703c; }
-.formule span.legende-eq { font-size: 13.5px; color: #a9b7c6; }
+.formule { margin-top: 20px; padding: 18px 20px; border-radius: 12px; background: var(--creux); border: 1px solid var(--bord); display: flex; gap: 10px 22px; align-items: center; flex-wrap: wrap; }
+.formule .eq { font: 500 clamp(15px, 1.9vw, 19px)/1.4 var(--chiffres); }
+.formule .eq em { font-style: normal; color: var(--lightgbm); }
+.formule span.legende-eq { font-size: 13.5px; color: var(--texte-2); }
 
-/* Frise des arrêtés */
+/* Frise */
 .frise { display: flex; gap: 14px; align-items: flex-end; overflow-x: auto; padding: 4px 2px 10px; margin-bottom: 16px; }
 .frise .annee { display: grid; gap: 6px; }
 .frise .annee > span { font: 500 12px/1 var(--chiffres); color: var(--discret); }
 .frise .trimestres { display: flex; gap: 4px; }
-.frise button { font: 500 13px/1 var(--chiffres); padding: 9px 11px; border-radius: 8px; border: 1px solid var(--axe); background: var(--surface); color: var(--texte-2); cursor: pointer; }
+.frise button { font: 500 13px/1 var(--chiffres); padding: 9px 11px; border-radius: 8px; border: 1px solid var(--bord); background: var(--panneau); color: var(--texte-2); cursor: pointer; }
 .frise button:hover { border-color: var(--texte-2); }
-.frise button[aria-pressed="true"] { background: var(--nuit); border-color: var(--nuit); color: #fff; }
+.frise button[aria-pressed="true"] { background: var(--texte); border-color: var(--texte); color: var(--fond); }
 
 /* Tuiles */
-.tuiles { display: grid; grid-template-columns: 1.35fr 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-@media (max-width: 900px) { .tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tuiles .maitre { grid-column: 1 / -1; } }
-.tuile { display: grid; gap: 4px; align-content: start; }
+.tuiles { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+@media (max-width: 1280px) { .tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .tuiles { grid-template-columns: minmax(0, 1fr); } }
+.tuile { display: grid; gap: 4px; align-content: start; position: relative; }
 .tuile .etiquette { color: var(--texte-2); font-size: 13.5px; display: flex; align-items: center; gap: 7px; }
 .tuile .valeur { font: 700 30px/1.1 var(--titre); letter-spacing: -0.02em; }
-.tuile.maitre { background: var(--nuit); color: #eef2f6; border-color: var(--nuit); }
-.tuile.maitre .etiquette, .tuile.maitre .detail { color: #a9b7c6; }
-.tuile.maitre .valeur { font-size: 56px; color: #f0703c; }
+.tuile.maitre { background: linear-gradient(160deg, var(--panneau-2), var(--panneau)); }
+.tuile.maitre .valeur { font-size: 58px; line-height: 1; }
 .tuile .detail { color: var(--texte-2); font-size: 13px; }
-.mini { height: 34px; margin-top: 6px; }
-.mini svg { display: block; width: 100%; height: 34px; }
+.tuile .corps-tuile { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.anneau { width: 68px; height: 68px; flex: none; display: block; }
+.sous-anneau { font-size: 11.5px; color: var(--texte-2); text-align: center; margin-top: 2px; }
+.anneau text { fill: var(--texte); font: 500 13px var(--chiffres); }
+.mini svg { display: block; width: 100%; height: 34px; margin-top: 6px; }
 .point { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
 
 /* Graphiques */
-.legende { display: flex; gap: 6px 16px; flex-wrap: wrap; font-size: 13.5px; color: var(--texte-2); margin-bottom: 6px; }
-.cle { display: inline-block; width: 16px; height: 0; border-top: 3px solid; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
-.cle.bande { height: 10px; border: 0; opacity: 0.28; }
-.cle.bloc-cle { height: 10px; width: 10px; border: 0; border-radius: 3px; }
 .graphique { position: relative; }
 .graphique svg { display: block; width: 100%; touch-action: pan-y; }
 .graphique text { fill: var(--discret); font: 11.5px var(--chiffres); }
 .graphique text.repere { fill: var(--texte-2); font-size: 10.5px; }
+.graphique text.fort { fill: var(--texte); font-size: 12px; }
 @keyframes trace { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 .graphique path.trace { stroke-dasharray: 1; animation: trace 1.4s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .graphique path.trace { animation: none; stroke-dasharray: none; } html { scroll-behavior: auto; } }
-.bulle { position: absolute; top: 0; pointer-events: none; background: var(--surface); color: var(--texte); border: 1px solid var(--axe); border-radius: 10px; padding: 9px 11px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); white-space: nowrap; display: none; z-index: 3; }
+.bulle { position: absolute; top: 0; pointer-events: none; background: var(--panneau-2); border: 1px solid var(--axe); border-radius: 10px; padding: 9px 11px; font-size: 13px; box-shadow: 0 8px 26px rgba(0,0,0,0.45); white-space: nowrap; display: none; z-index: 3; }
 .bulle .titre { color: var(--texte-2); margin-bottom: 4px; }
 .bulle .ligne { display: flex; align-items: center; gap: 4px; }
 .bulle b { margin-right: 6px; font: 500 13px var(--chiffres); }
 .bulle span { color: var(--texte-2); }
+.echelle-chaleur { display: grid; gap: 4px; max-width: 320px; margin-top: 12px; }
 
 /* Stades */
-.segments { display: grid; gap: 10px; margin-bottom: 18px; }
+.segments { display: grid; gap: 10px; margin-bottom: 4px; }
 .segments .rangee { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; align-items: center; font-size: 13.5px; color: var(--texte-2); }
 @media (max-width: 560px) { .segments .rangee { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
 .segment { display: flex; gap: 2px; height: 28px; }
-.segment i { display: flex; align-items: center; padding-left: 7px; border-radius: 4px; font: 500 12px/1 var(--chiffres); font-style: normal; min-width: 2px; overflow: visible; white-space: nowrap; transition: flex-basis 0.5s ease; }
-.stades { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-@media (max-width: 900px) { .stades { grid-template-columns: minmax(0, 1fr); } }
-.stade { border: 1px solid var(--trait); border-radius: 12px; padding: 16px; display: grid; gap: 10px; align-content: start; }
+.segment i { display: flex; align-items: center; padding-left: 7px; border-radius: 4px; font: 500 12px/1 var(--chiffres); font-style: normal; min-width: 2px; white-space: nowrap; transition: flex-basis 0.5s ease; }
+.stades { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+@media (max-width: 860px) { .stades { grid-template-columns: minmax(0, 1fr); } }
+.stade { display: grid; gap: 12px; align-content: start; }
 .stade header { display: flex; gap: 12px; align-items: center; }
 .stade .jeton { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font: 700 19px/1 var(--titre); flex: none; }
 .stade header p { font-size: 13px; color: var(--texte-2); }
@@ -177,15 +200,20 @@ section.bloc { padding-block: clamp(40px, 6vw, 72px) 0; }
 .stade dt { color: var(--texte-2); }
 .stade dd { margin: 0; text-align: right; font: 500 13.5px var(--chiffres); }
 .duo { display: grid; gap: 4px; }
-.barre { display: flex; align-items: center; gap: 8px; font: 500 12.5px var(--chiffres); }
+.barre { display: flex; align-items: center; gap: 8px; font: 500 12.5px var(--chiffres); white-space: nowrap; }
 .barre i { display: block; height: 12px; border-radius: 0 4px 4px 0; min-width: 2px; transition: width 0.5s ease; }
 
 /* Scénarios */
-.curseurs { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px 14px; align-items: center; margin-bottom: 14px; }
+.bascule { display: inline-flex; border: 1px solid var(--bord); border-radius: 999px; padding: 3px; background: var(--creux); margin-bottom: 14px; }
+.bascule button { border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; font-size: 13.5px; color: var(--texte-2); cursor: pointer; display: flex; align-items: center; gap: 7px; }
+.bascule button[aria-pressed="true"] { background: var(--panneau-2); color: var(--texte); }
+.triangle { touch-action: none; cursor: grab; max-width: 340px; margin: 0 auto 6px; user-select: none; }
+.triangle svg { display: block; width: 100%; }
+.triangle text { fill: var(--texte-2); font: 12px var(--corps); }
+.curseurs { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 14px; align-items: center; margin: 10px 0 14px; font-size: 14px; }
 .curseurs output { font: 500 14px var(--chiffres); min-width: 5ch; text-align: right; }
-input[type=range] { accent-color: var(--lightgbm); width: 100%; }
-.choix { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; font-size: 14px; }
-select, .discret { font: inherit; font-size: 14px; padding: 6px 10px; border: 1px solid var(--axe); border-radius: 8px; background: var(--surface); color: var(--texte); }
+.choix { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; font-size: 14px; }
+select, .discret { font: inherit; font-size: 14px; padding: 6px 10px; border: 1px solid var(--axe); border-radius: 8px; background: var(--panneau-2); color: var(--texte); }
 .discret { cursor: pointer; }
 .table-defile { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
@@ -193,90 +221,112 @@ th, td { padding: 7px 6px; text-align: right; border-bottom: 1px solid var(--tra
 td { font-family: var(--chiffres); font-variant-numeric: tabular-nums; }
 th:first-child, td:first-child { text-align: left; font-family: var(--corps); }
 th { color: var(--texte-2); font-weight: 600; }
-tr.fort td { font-weight: 500; color: var(--texte); border-bottom: 0; }
+tr.fort td { color: var(--texte); border-bottom: 0; background: var(--creux); }
 
 /* Générations */
 .generations { display: grid; gap: 18px; }
 .generation { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 6px 14px; align-items: center; }
 .generation .an { font: 700 22px/1 var(--titre); grid-row: span 2; }
-.generation .fois { grid-row: span 2; font: 700 22px/1 var(--titre); color: var(--texte-2); text-align: right; }
-.generation .fois small { display: block; font: 400 11.5px var(--corps); }
+.generation .fois { grid-row: span 2; font: 700 24px/1 var(--titre); text-align: right; }
+.generation .fois small { display: block; font: 400 11.5px var(--corps); color: var(--texte-2); margin-top: 3px; }
+.generation .barre i { height: 16px; }
 .pile { display: flex; gap: 2px; flex: none; }
-.generation .barre { white-space: nowrap; }
-.hachure { background-image: repeating-linear-gradient(135deg, transparent 0 4px, var(--surface) 4px 6px); }
+.hachure { background-image: repeating-linear-gradient(135deg, transparent 0 4px, var(--panneau) 4px 6px); }
 
 /* Limites */
 .limites { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-@media (max-width: 900px) { .limites { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1280px) { .limites { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .limites { grid-template-columns: minmax(0, 1fr); } }
-.limite { border-top: 3px solid var(--texte); padding-top: 14px; display: grid; gap: 6px; align-content: start; }
-.limite b { font: 700 28px/1 var(--titre); letter-spacing: -0.02em; }
+.limite { display: grid; gap: 6px; align-content: start; }
+.limite b { font: 700 28px/1 var(--titre); letter-spacing: -0.02em; color: var(--s3); }
 .limite p { font-size: 14px; color: var(--texte-2); }
-details { margin-top: 4px; }
 summary { cursor: pointer; color: var(--texte-2); font-size: 14px; }
-footer { margin-top: clamp(40px, 6vw, 72px); background: var(--nuit); color: #a9b7c6; font-size: 13.5px; }
-footer .cadre { padding-block: 26px; display: flex; gap: 12px 28px; flex-wrap: wrap; justify-content: space-between; }
-footer b { color: #eef2f6; }
+footer { margin-top: clamp(44px, 6vw, 80px); border-top: 1px solid var(--bord); color: var(--texte-2); font-size: 13.5px; }
+footer .cadre { padding-block: 24px; display: flex; gap: 10px 28px; flex-wrap: wrap; justify-content: space-between; }
+footer b { color: var(--texte); }
 </style>
 </head>
 <body>
-<header class="barre-haute">
-  <div class="cadre">
-    <a class="marque" href="#haut">ecl<i>9</i></a>
-    <nav aria-label="Sections">
-      <a href="#methode">Méthode</a>
-      <a href="#explorer">Arrêté par arrêté</a>
-      <a href="#stades">Stades</a>
-      <a href="#scenarios">Scénarios</a>
-      <a href="#verite">Épreuve des faits</a>
-      <a href="#limites">Limites</a>
-    </nav>
-    <div class="pilote" role="group" aria-label="Arrêté affiché">
+<aside class="rail">
+  <a class="marque" href="#reponse">ecl<i>9</i><small>Moteur de provisionnement IFRS 9</small></a>
+  <div class="pilote" role="group" aria-label="Arrêté affiché">
+    <span class="mono">Arrêté affiché</span>
+    <span class="date" id="date-pilote" aria-live="polite"></span>
+    <input type="range" id="curseur-arrete" min="0" step="1" aria-label="Arrêté">
+    <div class="commandes">
       <button class="rond" id="precedent" type="button" aria-label="Arrêté précédent"><svg viewBox="0 0 16 16"><path d="M10.5 2.5 5 8l5.5 5.5z"/></svg></button>
-      <span class="date" id="date-pilote" aria-live="polite"></span>
       <button class="rond" id="suivant" type="button" aria-label="Arrêté suivant"><svg viewBox="0 0 16 16"><path d="M5.5 2.5 11 8l-5.5 5.5z"/></svg></button>
-      <button class="rond lecture" id="lecture" type="button" aria-label="Dérouler la crise"><svg viewBox="0 0 16 16"><path id="lecture-forme" d="M4 2.5v11l9-5.5z"/></svg></button>
+      <button class="rond lecture" id="lecture" type="button" aria-label="Dérouler la crise"><svg viewBox="0 0 16 16"><path id="lecture-forme" d="M4 2.5v11l9-5.5z"/></svg><b id="lecture-texte">Dérouler</b></button>
     </div>
   </div>
-</header>
+  <nav class="sommaire" aria-label="Chapitres">
+    <a href="#reponse"><span>01</span>La réponse</a>
+    <a href="#methode"><span>02</span>La méthode</a>
+    <a href="#explorer"><span>03</span>Arrêté par arrêté</a>
+    <a href="#stades"><span>04</span>Les stades</a>
+    <a href="#scenarios"><span>05</span>Les scénarios</a>
+    <a href="#verite"><span>06</span>L'épreuve des faits</a>
+    <a href="#limites"><span>07</span>Les limites</a>
+  </nav>
+  <div class="code-couleur" aria-label="Code couleur de la page">
+    <span class="mono">Code couleur</span>
+    <div><span class="pastille-c" style="background:var(--logistique)"></span>Régression logistique</div>
+    <div><span class="pastille-c" style="background:var(--lightgbm)"></span>LightGBM</div>
+    <div><span class="pastille-c" style="background:var(--observe)"></span>Observé après coup</div>
+    <div><span class="pastille-c" style="background:var(--prevue)"></span>Perte en cas de défaut prévue</div>
+    <div><span class="pastille-c" style="background:linear-gradient(90deg,var(--s1) 33%,var(--s2) 33% 66%,var(--s3) 66%)"></span>Stades 1, 2 et 3</div>
+    <div class="degrade" style="display:block"></div>
+    <div class="echelle"><span>plus bas</span><span>écart nul</span><span>plus haut</span></div>
+  </div>
+  <div class="liens">
+    <a href="./">Lire la note complète</a>
+    <a href="https://github.com/selyassine/ecl9">Code source et décisions</a>
+  </div>
+</aside>
 
-<div class="ouverture" id="haut">
-  <div class="cadre">
-    <div>
-      <p class="surtitre">IFRS 9 · Prêts immobiliers Freddie Mac · 2006-2010</p>
-      <h1>Remplacer la régression logistique par LightGBM change‑t‑il la provision ?</h1>
-      <div class="reponse">
-        <span class="grand" id="reponse-ecart"></span>
-        <p><b>Oui, et à la hausse.</b> Au 31 décembre 2007, à la veille de la crise, LightGBM provisionne
-          <span id="reponse-lgb"></span> contre <span id="reponse-log"></span> pour la logistique, sur le même portefeuille.</p>
-      </div>
-      <div class="actions">
-        <a class="bouton plein" href="#explorer">Explorer arrêté par arrêté</a>
-        <a class="bouton" href="./">Lire la note complète</a>
-        <a class="bouton" href="https://github.com/selyassine/ecl9">Code source</a>
-      </div>
-    </div>
-    <div class="tableau-ouverture">
-      <h3>L'écart se creuse avant la crise, puis se referme</h3>
-      <p class="note">Provision LightGBM rapportée à la provision logistique. Bande : intervalle à 95 %.</p>
-      <div class="graphique" id="g-ouverture"></div>
-      <ul class="reperes" id="reperes-ouverture"></ul>
-    </div>
-  </div>
-  <div class="faits">
+<main>
+  <div class="ouverture" id="reponse">
     <div class="cadre">
-      <div class="fait"><b>450 000</b><span>prêts octroyés de 2000 à 2008</span></div>
-      <div class="fait"><b>24,8 millions</b><span>de lignes prêt-mois suivies</span></div>
-      <div class="fait"><b id="fait-arretes"></b><span>arrêtés trimestriels calculés</span></div>
-      <div class="fait"><b>56</b><span>décisions de modélisation documentées</span></div>
+      <div class="duo-ouverture">
+        <div>
+          <p class="mono" style="margin-bottom:16px">IFRS 9 · Prêts immobiliers Freddie Mac · 2006-2010</p>
+          <h1>Remplacer la régression logistique par LightGBM change‑t‑il la provision ?</h1>
+          <div class="reponse">
+            <span class="grand" id="reponse-ecart"></span>
+            <p><b>Oui, et à la hausse.</b> Au 31 décembre 2007, à la veille de la crise, LightGBM provisionne
+              <span id="reponse-lgb"></span> contre <span id="reponse-log"></span> pour la logistique, sur le même portefeuille.</p>
+          </div>
+          <div class="actions">
+            <a class="bouton plein" href="#explorer">Explorer arrêté par arrêté</a>
+            <a class="bouton" href="./">Lire la note complète</a>
+          </div>
+        </div>
+        <div class="carte portefeuille">
+          <h3>Le portefeuille au <span class="date-arrete"></span></h3>
+          <p class="sous">Un point représente 100 prêts des générations 2006 à 2008. Lancez la lecture (bouton ▶) pour voir la crise gagner le portefeuille.</p>
+          <canvas id="points" role="img" aria-label="Portefeuille en points, colorés par stade"></canvas>
+          <div class="compte" id="compte"></div>
+        </div>
+      </div>
+      <div class="carte">
+        <h3>L'écart se creuse avant la crise, puis se referme</h3>
+        <p class="sous">Provision LightGBM rapportée à la provision logistique, à chaque arrêté. Bande : intervalle à 95 %.</p>
+        <div class="graphique" id="g-ouverture"></div>
+        <ul class="reperes" id="reperes-ouverture"></ul>
+      </div>
+      <div class="faits">
+        <div class="fait"><b>450 000</b><span>prêts octroyés de 2000 à 2008</span></div>
+        <div class="fait"><b>24,8 millions</b><span>de lignes prêt-mois suivies</span></div>
+        <div class="fait"><b id="fait-arretes"></b><span>arrêtés trimestriels calculés</span></div>
+        <div class="fait"><b>56</b><span>décisions de modélisation documentées</span></div>
+      </div>
     </div>
   </div>
-</div>
 
-<main class="cadre">
+  <div class="cadre">
   <section class="bloc" id="methode">
     <div class="tete">
-      <p class="surtitre">Méthode</p>
+      <p class="mono"><b>02</b>La méthode</p>
       <h2>Deux modèles de défaut, un seul moteur de calcul</h2>
       <p>Tout est identique entre les deux calculs, sauf le modèle qui estime la probabilité de défaut à 12 mois.
         L'écart de provision ne peut donc venir que de lui.</p>
@@ -285,27 +335,27 @@ footer b { color: #eef2f6; }
       <div class="chaine">
         <div class="etape">
           <div class="icone"><svg viewBox="0 0 26 26"><ellipse cx="13" cy="6" rx="8" ry="3"/><path d="M5 6v7c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M5 13v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7"/></svg></div>
-          <p class="surtitre rang"></p><h3>Données</h3>
+          <p class="mono rang"></p><h3>Données</h3>
           <p>Historique mensuel de chaque prêt, chômage et prix immobiliers par État.</p>
         </div>
         <div class="etape">
           <div class="icone"><svg viewBox="0 0 26 26"><path d="M3 22h20"/><path class="b" d="M3 19c6 0 8-4 10-8s4-7 10-7"/><path class="a" d="M3 20c4 0 5-1 7-6 1-3 3-3 5-6s4-6 8-6"/></svg></div>
-          <p class="surtitre rang"></p><h3>Défaut à 12 mois</h3>
+          <p class="mono rang"></p><h3>Défaut à 12 mois</h3>
           <p>Logistique d'un côté, LightGBM de l'autre, entraînés sur la période d'avant crise.</p>
         </div>
         <div class="etape">
           <div class="icone"><svg viewBox="0 0 26 26"><path d="M3 4v18h20"/><path d="M4 6c5 1 7 6 10 9s5 4 9 4"/><path class="a" d="M9 4v18M15 4v18" stroke-dasharray="1.5 3"/></svg></div>
-          <p class="surtitre rang"></p><h3>Durée de vie</h3>
+          <p class="mono rang"></p><h3>Durée de vie</h3>
           <p>Risque de défaut et de remboursement anticipé, mois après mois jusqu'à l'échéance.</p>
         </div>
         <div class="etape">
           <div class="icone"><svg viewBox="0 0 26 26"><path d="M3 12 13 4l10 8"/><path d="M6 10v12h14V10"/><path class="a" d="M10 16h6"/></svg></div>
-          <p class="surtitre rang"></p><h3>Perte en cas de défaut</h3>
+          <p class="mono rang"></p><h3>Perte en cas de défaut</h3>
           <p>Valeur du bien réévaluée par État, perte actualisée sur le délai de résolution.</p>
         </div>
         <div class="etape">
           <div class="icone"><svg viewBox="0 0 26 26"><path d="M19 5H7l7 8-7 8h12"/><circle class="a" cx="21" cy="13" r="1.4"/></svg></div>
-          <p class="surtitre rang"></p><h3>Provision</h3>
+          <p class="mono rang"></p><h3>Provision</h3>
           <p>Stades 1 à 3, trois scénarios économiques pondérés, arrêtés trimestriels.</p>
         </div>
       </div>
@@ -318,10 +368,10 @@ footer b { color: #eef2f6; }
 
   <section class="bloc" id="explorer">
     <div class="tete">
-      <p class="surtitre">Arrêté par arrêté</p>
+      <p class="mono"><b>03</b>Arrêté par arrêté</p>
       <h2>Vingt arrêtés, de l'avant-crise au creux de 2010</h2>
-      <p>Choisissez un trimestre, ou lancez la lecture en haut de page pour dérouler la crise. Tous les chiffres
-        qui suivent sont ceux de l'arrêté choisi.</p>
+      <p>Choisissez un trimestre ici, dans le rail ou avec les flèches du clavier. Tous les chiffres de la page
+        suivent l'arrêté choisi.</p>
     </div>
     <div class="frise" id="frise" role="group" aria-label="Choisir un arrêté"></div>
     <div class="tuiles">
@@ -332,15 +382,11 @@ footer b { color: #eef2f6; }
       </div>
       <div class="carte tuile">
         <div class="etiquette"><span class="point" style="background:var(--logistique)"></span>Provision logistique</div>
-        <div class="valeur" id="t-log"></div>
-        <div class="detail" id="t-log-detail"></div>
-        <div class="mini" id="m-log"></div>
+        <div class="corps-tuile"><div><div class="valeur" id="t-log"></div><div class="detail" id="t-log-detail"></div></div><div id="a-log"></div></div>
       </div>
       <div class="carte tuile">
         <div class="etiquette"><span class="point" style="background:var(--lightgbm)"></span>Provision LightGBM</div>
-        <div class="valeur" id="t-lgb"></div>
-        <div class="detail" id="t-lgb-detail"></div>
-        <div class="mini" id="m-lgb"></div>
+        <div class="corps-tuile"><div><div class="valeur" id="t-lgb"></div><div class="detail" id="t-lgb-detail"></div></div><div id="a-lgb"></div></div>
       </div>
       <div class="carte tuile">
         <div class="etiquette"><span class="point" style="background:var(--observe)"></span>Pertes constatées ensuite</div>
@@ -359,50 +405,70 @@ footer b { color: #eef2f6; }
           <span><span class="cle" style="border-color:var(--observe)"></span>Pertes constatées</span>
         </div>
         <div class="graphique" id="g-ecl"></div>
-        <ul class="reperes reperes-clair" id="reperes-ecl"></ul>
+        <ul class="reperes" id="reperes-ecl"></ul>
       </div>
       <div class="carte">
         <h3>Écart entre les deux modèles</h3>
-        <div class="sous">Provision LightGBM rapportée à la provision logistique. La bande vient du rééchantillonnage du portefeuille, les barres de la réestimation des modèles.</div>
+        <div class="sous">La bande vient du rééchantillonnage du portefeuille, les barres de la réestimation des deux modèles sur 100 tirages.</div>
         <div class="legende">
           <span><span class="cle" style="border-color:var(--lightgbm)"></span>Écart relatif</span>
           <span><span class="cle bande" style="background:var(--lightgbm)"></span>Intervalle à 95 %</span>
-          <span><span class="cle" style="border-color:var(--texte-2)"></span>Modèles réestimés</span>
+          <span><span class="cle" style="border-color:var(--observe)"></span>Modèles réestimés</span>
         </div>
         <div class="graphique" id="g-ecart"></div>
       </div>
+    </div>
+    <div class="carte">
+      <h3>Où et quand les deux modèles divergent</h3>
+      <div class="sous">Écart LightGBM par rapport à la logistique, par stade et par arrêté. Le stade 3 n'apparaît pas : la provision y est la même.</div>
+      <div class="graphique" id="g-chaleur"></div>
+      <div class="echelle-chaleur"><div class="degrade"></div><div class="echelle"><span>−100 %</span><span>0</span><span>+100 % et plus</span></div></div>
     </div>
   </section>
 
   <section class="bloc" id="stades">
     <div class="tete">
-      <p class="surtitre">Stades IFRS 9</p>
+      <p class="mono"><b>04</b>Les stades</p>
       <h2>Où se loge la provision au <span class="date-arrete"></span></h2>
       <p>Presque tout l'encours est sain, mais la provision se concentre sur la petite part de prêts dégradés
         ou en défaut. C'est dans les stades 1 et 2 que le choix du modèle pèse.</p>
     </div>
-    <div class="carte">
-      <div class="legende">
-        <span><span class="cle bloc-cle" style="background:var(--s1)"></span>Stade 1, sain</span>
-        <span><span class="cle bloc-cle" style="background:var(--s2)"></span>Stade 2, dégradé</span>
-        <span><span class="cle bloc-cle" style="background:var(--s3)"></span>Stade 3, en défaut</span>
+    <div class="grille tiers">
+      <div class="carte">
+        <h3>Répartition par stade</h3>
+        <div class="sous">Part de chaque stade dans l'encours et dans la provision.</div>
+        <div class="legende">
+          <span><span class="cle plein" style="background:var(--s1)"></span>Stade 1</span>
+          <span><span class="cle plein" style="background:var(--s2)"></span>Stade 2</span>
+          <span><span class="cle plein" style="background:var(--s3)"></span>Stade 3</span>
+        </div>
+        <div class="segments" id="segments"></div>
       </div>
-      <div class="segments" id="segments"></div>
-      <div class="stades" id="cartes-stades"></div>
+      <div class="carte">
+        <h3>D'où vient l'écart</h3>
+        <div class="sous">De la provision logistique à la provision LightGBM, stade par stade. Millions de dollars.</div>
+        <div class="graphique" id="g-cascade"></div>
+      </div>
     </div>
+    <div class="stades" id="cartes-stades"></div>
   </section>
 
   <section class="bloc" id="scenarios">
     <div class="tete">
-      <p class="surtitre">Scénarios économiques</p>
-      <h2>Faites varier le poids des scénarios</h2>
-      <p>La provision publiée pondère trois trajectoires de chômage et de prix immobiliers. Déplacez les curseurs
-        pour voir ce que deviendrait la provision avec un autre jugement sur l'avenir.</p>
+      <p class="mono"><b>05</b>Les scénarios</p>
+      <h2>Déplacez le point, la provision suit</h2>
+      <p>La provision publiée pondère trois trajectoires de chômage et de prix immobiliers à 50, 30 et 20 %.
+        Faites glisser le point dans le triangle pour essayer un autre jugement sur l'avenir.</p>
     </div>
-    <div class="grille deux">
+    <div class="bascule" role="group" aria-label="Modèle affiché">
+      <button type="button" data-modele="logistique"><span class="point" style="background:var(--logistique)"></span>Logistique</button>
+      <button type="button" data-modele="lightgbm"><span class="point" style="background:var(--lightgbm)"></span>LightGBM</button>
+    </div>
+    <div class="grille tiers">
       <div class="carte">
-        <h3>Pondérations au <span class="date-arrete"></span></h3>
-        <div class="sous">Les poids sont ramenés à 100 %.</div>
+        <h3>Poids des scénarios au <span class="date-arrete"></span></h3>
+        <div class="sous">La couleur donne l'écart de la provision pondérée à la provision à macro figée. Du bleu (moins que la macro figée) à l'orange (plus). Cercle pointillé : pondération publiée.</div>
+        <div class="triangle" id="triangle" role="img" aria-label="Triangle des pondérations de scénarios"></div>
         <div class="curseurs">
           <label for="p-central">Central</label><input type="range" id="p-central" min="0" max="100" value="50"><output id="o-central"></output>
           <label for="p-defavorable">Défavorable</label><input type="range" id="p-defavorable" min="0" max="100" value="30"><output id="o-defavorable"></output>
@@ -417,23 +483,24 @@ footer b { color: #eef2f6; }
           </select>
           <button type="button" class="discret" id="p-reinit">Revenir à 50 / 30 / 20</button>
         </div>
-        <div class="table-defile"><table id="table-scenarios"></table></div>
       </div>
       <div class="carte">
-        <h3>Effet des scénarios sur la provision</h3>
-        <div class="sous">Écart entre la provision pondérée et la provision à macro figée, avec les poids choisis.</div>
+        <h3>Effet des scénarios sur la provision <span id="nom-modele-scen"></span></h3>
+        <div class="sous">Écart à la provision à macro figée. La bande couvre les trois scénarios pris un par un.</div>
         <div class="legende">
-          <span><span class="cle" style="border-color:var(--logistique)"></span>Logistique</span>
-          <span><span class="cle" style="border-color:var(--lightgbm)"></span>LightGBM</span>
+          <span><span class="cle" id="cle-poids"></span>Avec vos poids</span>
+          <span><span class="cle" style="border-color:var(--discret)"></span>Scénario central</span>
+          <span><span class="cle bande" style="background:var(--texte-2)"></span>Du plus favorable au plus défavorable</span>
         </div>
         <div class="graphique" id="g-scenarios"></div>
+        <div class="table-defile" style="margin-top:10px"><table id="table-scenarios"></table></div>
       </div>
     </div>
   </section>
 
   <section class="bloc" id="verite">
     <div class="tete">
-      <p class="surtitre">Épreuve des faits</p>
+      <p class="mono"><b>06</b>L'épreuve des faits</p>
       <h2>Ce que les modèles n'avaient pas vu venir</h2>
       <p>Un modèle estimé avant la crise ne peut pas la prévoir. Ces deux vues mesurent l'ampleur de ce qui a manqué,
         sans l'atténuer.</p>
@@ -443,9 +510,9 @@ footer b { color: #eef2f6; }
         <h3>Provision à l'octroi contre pertes réelles</h3>
         <div class="sous">Générations 2006 à 2008, millions de dollars. Provision LightGBM à maturité calculée à l'octroi, pertes constatées jusqu'en juin 2026.</div>
         <div class="legende">
-          <span><span class="cle bloc-cle" style="background:var(--lightgbm)"></span>Provision à l'octroi</span>
-          <span><span class="cle bloc-cle" style="background:var(--observe)"></span>Pertes constatées</span>
-          <span><span class="cle bloc-cle hachure" style="background-color:var(--observe)"></span>Pertes estimées, défauts non résolus</span>
+          <span><span class="cle plein" style="background:var(--lightgbm)"></span>Provision à l'octroi</span>
+          <span><span class="cle plein" style="background:var(--observe)"></span>Pertes constatées</span>
+          <span><span class="cle plein hachure" style="background-color:var(--observe)"></span>Pertes estimées, défauts non résolus</span>
         </div>
         <div class="generations" id="generations"></div>
       </div>
@@ -455,6 +522,7 @@ footer b { color: #eef2f6; }
         <div class="legende">
           <span><span class="cle" style="border-color:var(--prevue)"></span>Prévue</span>
           <span><span class="cle" style="border-color:var(--observe)"></span>Réalisée</span>
+          <span><span class="cle bande" style="background:var(--texte-2)"></span>Erreur de prévision</span>
         </div>
         <div class="graphique" id="g-lgd"></div>
       </div>
@@ -463,17 +531,17 @@ footer b { color: #eef2f6; }
 
   <section class="bloc" id="limites">
     <div class="tete">
-      <p class="surtitre">Limites assumées</p>
+      <p class="mono"><b>07</b>Les limites</p>
       <h2>Ce que le moteur ne sait pas faire</h2>
       <p>Chaque limite est mesurée et documentée dans le journal des décisions du dépôt.</p>
     </div>
     <div class="limites">
-      <div class="limite"><b>31 % contre 55 %</b><h3>Sévérité des pertes</h3><p>La sévérité prévue reste à peu près la moitié de celle constatée pendant la crise.</p></div>
-      <div class="limite"><b>× 3</b><h3>Remboursement anticipé</h3><p>Il est surestimé d'un facteur trois environ quand le crédit se ferme.</p></div>
-      <div class="limite"><b>0</b><h3>Sensibilité de la survie</h3><p>La survie ne réagit ni au chômage ni aux prix : les scénarios passent par le défaut à 12 mois.</p></div>
-      <div class="limite"><b>Quantitatif</b><h3>Passage en stade 2</h3><p>Il repose sur le retard et la hausse de la probabilité de défaut, sans critère qualitatif.</p></div>
+      <div class="carte limite"><b>31 % contre 55 %</b><h3>Sévérité des pertes</h3><p>La sévérité prévue reste à peu près la moitié de celle constatée pendant la crise.</p></div>
+      <div class="carte limite"><b>× 3</b><h3>Remboursement anticipé</h3><p>Il est surestimé d'un facteur trois environ quand le crédit se ferme.</p></div>
+      <div class="carte limite"><b>0</b><h3>Sensibilité de la survie</h3><p>La survie ne réagit ni au chômage ni aux prix : les scénarios passent par le défaut à 12 mois.</p></div>
+      <div class="carte limite"><b>Quantitatif</b><h3>Passage en stade 2</h3><p>Il repose sur le retard et la hausse de la probabilité de défaut, sans critère qualitatif.</p></div>
     </div>
-    <div class="carte" style="margin-top:24px">
+    <div class="carte" style="margin-top:16px">
       <h3>Toutes les valeurs par arrêté</h3>
       <div class="sous">Provisions et pertes en millions de dollars, macro figée.</div>
       <details>
@@ -482,14 +550,15 @@ footer b { color: #eef2f6; }
       </details>
     </div>
   </section>
-</main>
-
-<footer>
-  <div class="cadre">
-    <span><b>ecl9</b> · Yassine · moteur de provisionnement IFRS 9</span>
-    <span>Chiffres issus des résultats versionnés du dépôt. Aucune donnée prêt par prêt n'est publiée ici.</span>
   </div>
-</footer>
+
+  <footer>
+    <div class="cadre">
+      <span><b>ecl9</b> · Yassine · moteur de provisionnement IFRS 9</span>
+      <span>Chiffres issus des résultats versionnés du dépôt. Aucune donnée prêt par prêt n'est publiée ici.</span>
+    </div>
+  </footer>
+</main>
 
 <script id="donnees" type="application/json">__DONNEES__</script>
 <script>
@@ -500,7 +569,9 @@ const NOM = { logistique: "Logistique", lightgbm: "LightGBM" };
 const COULEUR = { logistique: "var(--logistique)", lightgbm: "var(--lightgbm)" };
 const STADES = ["1", "2", "3"];
 const NOM_STADE = { 1: "Sain", 2: "Dégradé", 3: "En défaut" };
+const TEXTE_STADE = { 1: "#eef0f8", 2: "#0b0e1c", 3: "#0b0e1c" };
 const HORIZON = { 1: "Pertes attendues à 12 mois", 2: "Pertes attendues jusqu'à l'échéance", 3: "Défaut avéré, perte à terminaison" };
+const SCENARIOS = ["central", "defavorable", "favorable"];
 const MOIS = { "03": "mars", "06": "juin", "09": "septembre", "12": "décembre" };
 const FIN = { "03": "31", "06": "30", "09": "30", "12": "31" };
 /* Repères placés sur l'axe des arrêtés (position en trimestres depuis le premier arrêté, mars 2006). */
@@ -510,13 +581,14 @@ const REPERES = [
   { pos: 14.35, texte: "Octobre 2009 : pic du chômage américain" },
 ];
 const n = D.arretes.length;
-const etat = { i: Math.max(0, D.arretes.indexOf("2007-12")), surcouche: "sans", lecture: null, premier: true };
+const etat = { i: Math.max(0, D.arretes.indexOf("2007-12")), surcouche: "sans", modele: "lightgbm", lecture: null, premier: true, glisse: false };
 const sansMouvement = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const css = (nom) => getComputedStyle(document.documentElement).getPropertyValue(nom).trim();
 
 const SVG = "http://www.w3.org/2000/svg";
+const BALISES_SVG = ["svg", "g", "path", "line", "rect", "circle", "text", "defs", "linearGradient", "stop", "polygon"];
 function el(nom, attributs, ...enfants) {
-  const svg = ["svg", "g", "path", "line", "rect", "circle", "text", "defs", "linearGradient", "stop"].includes(nom);
-  const e = svg ? document.createElementNS(SVG, nom) : document.createElement(nom);
+  const e = BALISES_SVG.includes(nom) ? document.createElementNS(SVG, nom) : document.createElement(nom);
   for (const [k, v] of Object.entries(attributs || {})) e.setAttribute(k, v);
   for (const c of enfants) e.append(c);
   return e;
@@ -524,13 +596,21 @@ function el(nom, attributs, ...enfants) {
 const id = (x) => document.getElementById(x);
 const nf = (d) => new Intl.NumberFormat("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
 const entier = (v) => nf(0).format(v);
-function millions(v) { const m = v / 1e6; return nf(m < 10 ? 2 : m < 100 ? 1 : 0).format(m); }
+function millions(v) { const m = Math.abs(v) / 1e6; return (v < 0 ? "−" : "") + nf(m < 10 ? 2 : m < 100 ? 1 : 0).format(m); }
 const musd = (v) => millions(v) + " M$";
 function pct(v, signe, d = 0) { return (signe && v > 0 ? "+" : "") + nf(d).format(v * 100).replace("-", "−") + " %"; }
 const dateLongue = (a) => { const [an, m] = a.split("-"); return FIN[m] + " " + MOIS[m] + " " + an; };
 const dateCourte = (a) => { const [an, m] = a.split("-"); return "T" + (+m / 3) + " " + an; };
 const somme = (modele, champ, i) => STADES.reduce((s, st) => s + D.par_stade[modele][st][champ][i], 0);
 const serie = (modele, champ) => D.arretes.map((_, j) => somme(modele, champ, j));
+
+/* Dégradé commun à tous les écarts : bleu (plus bas), neutre (nul), orange (plus haut). */
+const rvb = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
+const BAS = rvb(css("--logistique")), MILIEU = rvb(css("--neutre")), HAUT = rvb(css("--lightgbm"));
+function couleurEcart(v, borne) {
+  const t = Math.max(-1, Math.min(1, v / borne)), cible = t < 0 ? BAS : HAUT, f = Math.abs(t) ** 0.7;
+  return "rgb(" + MILIEU.map((c, k) => Math.round(c + (cible[k] - c) * f)).join(",") + ")";
+}
 
 /* Fait glisser un nombre affiché vers sa nouvelle valeur. */
 function animer(cible, valeur, format) {
@@ -546,6 +626,21 @@ function animer(cible, valeur, format) {
   };
   cible._f = requestAnimationFrame(pas);
 }
+
+function bulleSur(conteneur) {
+  const bulle = el("div", { class: "bulle" });
+  conteneur.append(bulle);
+  return {
+    montrer(titre, lignesBulle, px) {
+      bulle.replaceChildren(el("div", { class: "titre" }, titre), ...lignesBulle);
+      bulle.style.display = "block";
+      const largeur = bulle.offsetWidth, total = conteneur.clientWidth;
+      bulle.style.left = Math.max(0, Math.min(total - largeur, px + (px > total / 2 ? -largeur - 12 : 12))) + "px";
+    },
+    cacher() { bulle.style.display = "none"; },
+  };
+}
+const ligneBulle = (couleur, valeur, nom) => el("div", { class: "ligne" }, ...(couleur ? [el("i", { class: "cle", style: `border-color:${couleur}` })] : []), el("b", {}, valeur), el("span", {}, nom));
 
 /* Graphique en lignes : réticule, bulle listant toutes les séries, clic pour choisir l'abscisse. */
 let compteur = 0;
@@ -564,13 +659,15 @@ function lignes(conteneur, o) {
     min = 10 ** a; max = 10 ** b;
   } else {
     if (o.zero) { min = Math.min(min, 0); max = Math.max(max, 0); }
-    const brut = (max - min) / 5, mag = 10 ** Math.floor(Math.log10(brut));
+    const brut = (max - min) / 5 || 1, mag = 10 ** Math.floor(Math.log10(brut));
     const pas = [1, 2, 2.5, 5, 10].map((f) => f * mag).find((p) => p >= brut);
     min = Math.floor(min / pas + 1e-9) * pas; max = Math.ceil(max / pas - 1e-9) * pas;
     for (let v = min; v <= max + pas / 2; v += pas) graduations.push(Math.abs(v) < pas / 1e6 ? 0 : v);
   }
   const t = o.log ? (v) => Math.log10(v) : (v) => v;
   const y = (v) => m.h + (H - m.h - m.b) * (1 - (t(v) - t(min)) / (t(max) - t(min)));
+  const chemin = (valeurs) => valeurs.map((v, i) => `${i ? "L" : "M"}${x(i)},${y(v)}`).join("");
+  const retour = (valeurs) => valeurs.map((v, i) => `L${x(i)},${y(v)}`).reverse().join("");
   const svg = el("svg", { viewBox: `0 0 ${L} ${H}`, height: H, role: "img", "aria-label": o.titre });
   for (const g of graduations) {
     svg.append(el("line", { x1: m.g, x2: L - m.d, y1: y(g), y2: y(g), stroke: o.zero && g === 0 ? "var(--axe)" : "var(--trait)", "stroke-width": 1 }));
@@ -586,38 +683,35 @@ function lignes(conteneur, o) {
   }
   (o.reperes || []).forEach((r, j) => {
     svg.append(el("line", { x1: x(r.pos), x2: x(r.pos), y1: m.h, y2: H - m.b, stroke: "var(--axe)", "stroke-width": 1 }));
-    svg.append(el("circle", { cx: x(r.pos), cy: 10, r: 8, fill: "var(--surface)", stroke: "var(--texte-2)", "stroke-width": 1 }));
+    svg.append(el("circle", { cx: x(r.pos), cy: 10, r: 8, fill: "var(--panneau)", stroke: "var(--texte-2)", "stroke-width": 1 }));
     svg.append(el("text", { x: x(r.pos), y: 13.5, "text-anchor": "middle", class: "repere" }, String(j + 1)));
   });
-  if (o.bande) {
-    const haut = o.bande.haut.map((v, i) => `${i ? "L" : "M"}${x(i)},${y(v)}`).join("");
-    const bas = o.bande.bas.map((v, i) => `L${x(i)},${y(v)}`).reverse().join("");
-    svg.append(el("path", { d: haut + bas + "Z", fill: o.bande.couleur, opacity: 0.22 }));
-  }
+  if (o.bande) svg.append(el("path", { d: chemin(o.bande.haut) + retour(o.bande.bas) + "Z", fill: o.bande.couleur, opacity: o.bande.opacite || 0.22 }));
+  if (o.entre) svg.append(el("path", { d: chemin(o.series[o.entre[0]].valeurs) + retour(o.series[o.entre[1]].valeurs) + "Z", fill: "var(--texte-2)", opacity: 0.14 }));
   if (o.sel != null) svg.append(el("line", { x1: x(o.sel), x2: x(o.sel), y1: m.h, y2: H - m.b, stroke: "var(--texte-2)", "stroke-width": 1 }));
   for (const b of o.barres || []) {
-    svg.append(el("line", { x1: x(b.i), x2: x(b.i), y1: y(b.bas), y2: y(b.haut), stroke: "var(--texte-2)", "stroke-width": 2, "stroke-linecap": "round" }));
-    for (const v of [b.bas, b.haut]) svg.append(el("line", { x1: x(b.i) - 5, x2: x(b.i) + 5, y1: y(v), y2: y(v), stroke: "var(--texte-2)", "stroke-width": 2, "stroke-linecap": "round" }));
+    svg.append(el("line", { x1: x(b.i), x2: x(b.i), y1: y(b.bas), y2: y(b.haut), stroke: "var(--observe)", "stroke-width": 2, "stroke-linecap": "round" }));
+    for (const v of [b.bas, b.haut]) svg.append(el("line", { x1: x(b.i) - 5, x2: x(b.i) + 5, y1: y(v), y2: y(v), stroke: "var(--observe)", "stroke-width": 2, "stroke-linecap": "round" }));
   }
   for (const s of o.series) {
-    const d = s.valeurs.map((v, i) => `${i ? "L" : "M"}${x(i)},${y(v)}`).join("");
+    const d = chemin(s.valeurs);
     if (s.aire) {
       const gid = "degrade" + compteur++;
       svg.append(el("defs", {}, el("linearGradient", { id: gid, x1: 0, x2: 0, y1: 0, y2: 1 },
-        el("stop", { offset: "0", "stop-color": s.couleur, "stop-opacity": 0.3 }), el("stop", { offset: "1", "stop-color": s.couleur, "stop-opacity": 0 }))));
+        el("stop", { offset: "0", "stop-color": s.couleur, "stop-opacity": 0.32 }), el("stop", { offset: "1", "stop-color": s.couleur, "stop-opacity": 0 }))));
       svg.append(el("path", { d: `${d}L${x(k - 1)},${y(o.zero ? 0 : min)}L${x(0)},${y(o.zero ? 0 : min)}Z`, fill: `url(#${gid})` }));
     }
     const trait = el("path", { d, fill: "none", stroke: s.couleur, "stroke-width": s.epais || 2, "stroke-linejoin": "round", "stroke-linecap": "round" });
     if (o.trace && !sansMouvement) { trait.setAttribute("pathLength", 1); trait.setAttribute("class", "trace"); }
     svg.append(trait);
-    if (o.sel != null) svg.append(el("circle", { cx: x(o.sel), cy: y(s.valeurs[o.sel]), r: 5, fill: s.couleur, stroke: "var(--surface)", "stroke-width": 2 }));
+    if (o.sel != null) svg.append(el("circle", { cx: x(o.sel), cy: y(s.valeurs[o.sel]), r: 5, fill: s.couleur, stroke: "var(--panneau)", "stroke-width": 2 }));
   }
   const reticule = el("line", { y1: m.h, y2: H - m.b, stroke: "var(--texte-2)", "stroke-width": 1, visibility: "hidden" });
   const zone = el("rect", { x: 0, y: 0, width: L, height: H, fill: "transparent" });
   if (o.surChoix) zone.style.cursor = "pointer";
   svg.append(reticule, zone);
-  const bulle = el("div", { class: "bulle" });
-  conteneur.append(svg, bulle);
+  conteneur.append(svg);
+  const bulle = bulleSur(conteneur);
   const indice = (ev) => {
     const r = svg.getBoundingClientRect();
     const px = ((ev.clientX - r.left) / r.width) * L;
@@ -626,33 +720,118 @@ function lignes(conteneur, o) {
   zone.addEventListener("pointermove", (ev) => {
     const i = indice(ev);
     reticule.setAttribute("x1", x(i)); reticule.setAttribute("x2", x(i)); reticule.setAttribute("visibility", "visible");
-    bulle.replaceChildren(el("div", { class: "titre" }, o.etiquettes[i]));
-    for (const s of o.series) {
-      bulle.append(el("div", { class: "ligne" }, el("i", { class: "cle", style: `border-color:${s.couleur}` }),
-        el("b", {}, o.format(s.valeurs[i])), el("span", {}, s.nom)));
-    }
-    for (const ligne of (o.complement ? o.complement(i) : [])) bulle.append(el("div", { class: "ligne" }, el("span", {}, ligne)));
-    bulle.style.display = "block";
-    const largeur = bulle.offsetWidth, px = (x(i) / L) * conteneur.clientWidth;
-    bulle.style.left = Math.max(0, Math.min(conteneur.clientWidth - largeur, px + (px > conteneur.clientWidth / 2 ? -largeur - 12 : 12))) + "px";
+    bulle.montrer(o.etiquettes[i], [...o.series.map((s) => ligneBulle(s.couleur, o.format(s.valeurs[i]), s.nom)),
+      ...(o.complement ? o.complement(i) : []).map((l) => el("div", { class: "ligne" }, el("span", {}, l)))], (x(i) / L) * conteneur.clientWidth);
   });
-  zone.addEventListener("pointerleave", () => { reticule.setAttribute("visibility", "hidden"); bulle.style.display = "none"; });
+  zone.addEventListener("pointerleave", () => { reticule.setAttribute("visibility", "hidden"); bulle.cacher(); });
   if (o.surChoix) zone.addEventListener("click", (ev) => o.surChoix(indice(ev)));
 }
 
-/* Courbe miniature d'une tuile : la série entière, le point de l'arrêté choisi mis en avant. */
+/* Portefeuille en points : chaque point vaut 100 prêts, sa place et son rang de risque sont fixes,
+   si bien que les stades 2 et 3 s'étendent d'un arrêté au suivant sans que les points ne sautent. */
+const UNITE = 100;
+const totalPrets = D.arretes.map((_, j) => somme("lightgbm", "prets", j));
+const CASES = Math.ceil(Math.max(...totalPrets) / UNITE);
+const RANGS = (() => { let g = 20071231; return Array.from({ length: CASES }, () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }); })();
+function points(i) {
+  const toile = id("points"), L = toile.parentElement.clientWidth - 40, pas = L < 380 ? 7 : 9, rayon = pas * 0.34;
+  const colonnes = Math.floor(L / pas), rangees = Math.ceil(CASES / colonnes), H = rangees * pas, dpr = window.devicePixelRatio || 1;
+  toile.width = L * dpr; toile.height = H * dpr; toile.style.height = H + "px";
+  const c = toile.getContext("2d");
+  c.scale(dpr, dpr);
+  const P = D.par_stade.lightgbm, tot = totalPrets[i], actifs = Math.round(tot / UNITE);
+  const p3 = P["3"].prets[i] / tot, p2 = P["2"].prets[i] / tot;
+  const teintes = [css("--s1"), css("--s2"), css("--s3")];
+  for (let k = 0; k < CASES; k++) {
+    const cx = (k % colonnes) * pas + pas / 2, cy = Math.floor(k / colonnes) * pas + pas / 2;
+    c.beginPath(); c.arc(cx, cy, rayon, 0, 6.2832);
+    if (k >= actifs) { c.fillStyle = "rgba(255,255,255,0.045)"; c.fill(); continue; }
+    const stade = RANGS[k] < p3 ? 2 : RANGS[k] < p3 + p2 ? 1 : 0;
+    c.fillStyle = teintes[stade]; c.fill();
+  }
+  id("compte").replaceChildren(...STADES.map((st) => el("div", { style: `border-color:var(--s${st})` },
+    el("b", {}, entier(P[st].prets[i])), el("span", {}, `prêts en stade ${st} (${pct(P[st].prets[i] / tot, false, 1).replace(" ", "\u00a0")})`))));
+}
+
+/* Anneau : part de la provision rapportée aux pertes constatées. */
+function anneau(conteneur, part, couleur) {
+  const r = 28, tour = 2 * Math.PI * r, p = Math.max(0, Math.min(1, part));
+  conteneur.replaceChildren(el("svg", { class: "anneau", viewBox: "0 0 68 68", role: "img", "aria-label": `Provision égale à ${pct(part)} des pertes constatées` },
+    el("circle", { cx: 34, cy: 34, r, fill: "none", stroke: "var(--trait)", "stroke-width": 6 }),
+    el("circle", { cx: 34, cy: 34, r, fill: "none", stroke: couleur, "stroke-width": 6, "stroke-linecap": "round", "stroke-dasharray": `${p * tour} ${tour}`, transform: "rotate(-90 34 34)" }),
+    el("text", { x: 34, y: 38.5, "text-anchor": "middle" }, pct(part))), el("div", { class: "sous-anneau" }, "des pertes"));
+}
 function mini(conteneur, valeurs, couleur, i) {
   const L = 200, H = 34, lg = valeurs.map((v) => Math.log10(Math.max(v, 1)));
   const a = Math.min(...lg), b = Math.max(...lg);
   const x = (j) => 4 + (j * (L - 8)) / (valeurs.length - 1), y = (v) => H - 5 - ((v - a) / (b - a || 1)) * (H - 10);
-  const d = lg.map((v, j) => `${j ? "L" : "M"}${x(j)},${y(v)}`).join("");
+  const d = (vals) => vals.map((v, j) => `${j ? "L" : "M"}${x(j)},${y(v)}`).join("");
   conteneur.replaceChildren(el("svg", { viewBox: `0 0 ${L} ${H}`, preserveAspectRatio: "none", "aria-hidden": "true" },
-    el("path", { d, fill: "none", stroke: "var(--axe)", "stroke-width": 1.5, "vector-effect": "non-scaling-stroke" }),
-    el("path", { d: lg.slice(0, i + 1).map((v, j) => `${j ? "L" : "M"}${x(j)},${y(v)}`).join(""), fill: "none", stroke: couleur, "stroke-width": 2, "vector-effect": "non-scaling-stroke" })));
+    el("path", { d: d(lg), fill: "none", stroke: "var(--axe)", "stroke-width": 1.5, "vector-effect": "non-scaling-stroke" }),
+    el("path", { d: d(lg.slice(0, i + 1)), fill: "none", stroke: couleur, "stroke-width": 2, "vector-effect": "non-scaling-stroke" })));
+}
+
+/* Carte de chaleur : écart par stade (lignes) et par arrêté (colonnes). */
+function chaleur(conteneur, i) {
+  conteneur.replaceChildren();
+  const L = Math.max(280, conteneur.clientWidth), g = L < 520 ? 58 : 84, h = 34, haut = 4;
+  const P = D.par_stade, lw = (L - g) / n;
+  const rangs = [
+    { nom: "Stade 1", v: (j) => P.lightgbm["1"].ecl[j] / P.logistique["1"].ecl[j] - 1 },
+    { nom: "Stade 2", v: (j) => P.lightgbm["2"].ecl[j] / P.logistique["2"].ecl[j] - 1 },
+    { nom: "Total", v: (j) => D.bootstrap.ecart[j] },
+  ];
+  const H = haut + rangs.length * h + 22;
+  const svg = el("svg", { viewBox: `0 0 ${L} ${H}`, height: H, role: "img", "aria-label": "Écart LightGBM par rapport à la logistique, par stade et par arrêté" });
+  rangs.forEach((r, k) => {
+    svg.append(el("text", { x: 0, y: haut + k * h + h / 2 + 4, class: k === 2 ? "fort" : "" }, r.nom));
+    for (let j = 0; j < n; j++) svg.append(el("rect", { x: g + j * lw + 1, y: haut + k * h + 1, width: lw - 2, height: h - 2, rx: 4, fill: couleurEcart(r.v(j), 1) }));
+  });
+  svg.append(el("rect", { x: g + i * lw - 0.5, y: haut - 0.5, width: lw + 1, height: rangs.length * h + 1, rx: 6, fill: "none", stroke: "var(--texte)", "stroke-width": 1.5 }));
+  for (let j = 0; j < n; j++) if (D.arretes[j].endsWith("-12")) svg.append(el("text", { x: g + j * lw + lw / 2, y: H - 5, "text-anchor": "middle" }, D.arretes[j].slice(0, 4)));
+  const zone = el("rect", { x: g, y: 0, width: L - g, height: H, fill: "transparent", style: "cursor:pointer" });
+  svg.append(zone);
+  conteneur.append(svg);
+  const bulle = bulleSur(conteneur);
+  const colonne = (ev) => { const r = svg.getBoundingClientRect(); return Math.max(0, Math.min(n - 1, Math.floor((((ev.clientX - r.left) / r.width) * L - g) / lw))); };
+  zone.addEventListener("pointermove", (ev) => {
+    const j = colonne(ev);
+    bulle.montrer(dateLongue(D.arretes[j]), rangs.map((r) => ligneBulle(null, pct(r.v(j), true), r.nom)), ((g + (j + 0.5) * lw) / L) * conteneur.clientWidth);
+  });
+  zone.addEventListener("pointerleave", () => bulle.cacher());
+  zone.addEventListener("click", (ev) => choisir(colonne(ev)));
+}
+
+/* Cascade : de la provision logistique à la provision LightGBM, stade par stade. */
+function cascade(conteneur, i) {
+  conteneur.replaceChildren();
+  const P = D.par_stade, L = Math.max(280, conteneur.clientWidth), H = 280, m = { g: 8, d: 8, h: 26, b: 44 };
+  const depart = somme("logistique", "ecl", i), fin = somme("lightgbm", "ecl", i);
+  const etapes = [{ nom: "Logistique", de: 0, a: depart, couleur: "var(--logistique)", texte: millions(depart) }];
+  let cumul = depart;
+  for (const st of STADES) {
+    const delta = P.lightgbm[st].ecl[i] - P.logistique[st].ecl[i];
+    etapes.push({ nom: "Stade " + st, de: cumul, a: cumul + delta, couleur: delta >= 0 ? "var(--lightgbm)" : "var(--logistique)", texte: (delta > 0 ? "+" : "") + millions(delta), delta: true });
+    cumul += delta;
+  }
+  etapes.push({ nom: "LightGBM", de: 0, a: fin, couleur: "var(--lightgbm)", texte: millions(fin) });
+  const max = Math.max(...etapes.flatMap((e) => [e.de, e.a])) * 1.02;
+  const y = (v) => m.h + (H - m.h - m.b) * (1 - v / max), pas = (L - m.g - m.d) / etapes.length, large = Math.min(64, pas * 0.62);
+  const svg = el("svg", { viewBox: `0 0 ${L} ${H}`, height: H, role: "img", "aria-label": "Passage de la provision logistique à la provision LightGBM par stade" });
+  svg.append(el("line", { x1: m.g, x2: L - m.d, y1: y(0), y2: y(0), stroke: "var(--axe)", "stroke-width": 1 }));
+  etapes.forEach((e, k) => {
+    const cx = m.g + pas * (k + 0.5), hautBarre = Math.min(y(e.de), y(e.a)), taille = Math.max(2, Math.abs(y(e.de) - y(e.a)));
+    if (k < etapes.length - 1) svg.append(el("line", { x1: cx + large / 2, x2: cx + pas - large / 2, y1: y(e.a), y2: y(e.a), stroke: "var(--axe)", "stroke-width": 1 }));
+    svg.append(el("rect", { x: cx - large / 2, y: hautBarre, width: large, height: taille, rx: e.delta ? 3 : 4, fill: e.couleur, opacity: e.delta ? 0.85 : 1 }));
+    svg.append(el("text", { x: cx, y: hautBarre - 7, "text-anchor": "middle", class: "fort" }, e.texte));
+    svg.append(el("text", { x: cx, y: H - 24, "text-anchor": "middle" }, e.nom));
+    if (e.delta) svg.append(el("text", { x: cx, y: H - 8, "text-anchor": "middle" }, "écart"));
+  });
+  conteneur.append(svg);
 }
 
 function poids() {
-  const brut = ["central", "defavorable", "favorable"].map((s) => +id("p-" + s).value);
+  const brut = SCENARIOS.map((s) => +id("p-" + s).value);
   const total = brut.reduce((a, b) => a + b, 0);
   const w = total > 0 ? brut.map((v) => v / total) : [1, 0, 0];
   return { central: w[0], defavorable: w[1], favorable: w[2] };
@@ -661,12 +840,54 @@ function ponderee(modele, i, w) {
   const s = D.scenarios[modele][etat.surcouche];
   return w.central * s.central[i] + w.defavorable * s.defavorable[i] + w.favorable * s.favorable[i];
 }
+
+/* Triangle des pondérations : chaque point est un jeu de poids, la couleur l'écart à la macro figée. */
+const TRI = { L: 320, H: 300, c: [160, 30], d: [22, 258], f: [298, 258] };
+const versPoint = (w) => [0, 1].map((k) => w.central * TRI.c[k] + w.defavorable * TRI.d[k] + w.favorable * TRI.f[k]);
+function versPoids(px, py) {
+  const [x1, y1] = TRI.c, [x2, y2] = TRI.d, [x3, y3] = TRI.f, det = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+  let a = ((y2 - y3) * (px - x3) + (x3 - x2) * (py - y3)) / det, b = ((y3 - y1) * (px - x3) + (x1 - x3) * (py - y3)) / det, c = 1 - a - b;
+  [a, b, c] = [a, b, c].map((v) => Math.max(0, v));
+  const s = a + b + c || 1;
+  return { central: a / s, defavorable: b / s, favorable: c / s };
+}
+function triangle(i, w) {
+  const N = 16, figee = somme(etat.modele, "ecl", i), svg = el("svg", { viewBox: `0 0 ${TRI.L} ${TRI.H}` });
+  const pur = Object.fromEntries(SCENARIOS.map((s) => [s, D.scenarios[etat.modele][etat.surcouche][s][i] / figee - 1]));
+  const borne = Math.max(0.05, ...Object.values(pur).map(Math.abs));
+  const sommet = (a, b) => versPoint({ central: a / N, defavorable: b / N, favorable: (N - a - b) / N });
+  const cellule = (pts) => {
+    const g = pts.reduce((s, p) => [s[0] + p[0] / 3, s[1] + p[1] / 3], [0, 0]);
+    const v = ponderee(etat.modele, i, versPoids(g[0], g[1])) / figee - 1;
+    svg.append(el("polygon", { points: pts.map((p) => p.map((q) => q.toFixed(1)).join(",")).join(" "), fill: couleurEcart(v, borne), stroke: couleurEcart(v, borne), "stroke-width": 0.8 }));
+  };
+  for (let a = 0; a < N; a++) for (let b = 0; b < N - a; b++) {
+    cellule([sommet(a, b), sommet(a + 1, b), sommet(a, b + 1)]);
+    if (a + b < N - 1) cellule([sommet(a + 1, b), sommet(a, b + 1), sommet(a + 1, b + 1)]);
+  }
+  svg.append(el("text", { x: TRI.c[0], y: 18, "text-anchor": "middle" }, `Central ${pct(pur.central, true)}`),
+    el("text", { x: TRI.d[0] - 14, y: 280 }, `Défavorable ${pct(pur.defavorable, true)}`), el("text", { x: TRI.f[0] + 14, y: 280, "text-anchor": "end" }, `Favorable ${pct(pur.favorable, true)}`));
+  const ref = versPoint({ central: 0.5, defavorable: 0.3, favorable: 0.2 }), p = versPoint(w);
+  svg.append(el("circle", { cx: ref[0], cy: ref[1], r: 13, fill: "none", stroke: "var(--texte)", "stroke-width": 1.2, "stroke-dasharray": "3 3" }));
+  svg.append(el("circle", { cx: p[0], cy: p[1], r: 8, fill: "var(--texte)", stroke: "var(--fond)", "stroke-width": 3 }));
+  id("triangle").replaceChildren(svg);
+}
+function glisser(ev) {
+  const r = id("triangle").getBoundingClientRect();
+  const w = versPoids(((ev.clientX - r.left) / r.width) * TRI.L, ((ev.clientY - r.top) / r.height) * TRI.H);
+  for (const s of SCENARIOS) id("p-" + s).value = Math.round(w[s] * 100);
+  rendre();
+}
+
 function table(cible, entetes, lignesTable, fort) {
   id(cible).replaceChildren(el("thead", {}, el("tr", {}, ...entetes.map((h) => el("th", { scope: "col" }, h)))),
     el("tbody", {}, ...lignesTable.map((l, j) => el("tr", fort != null && j >= fort ? { class: "fort" } : {}, ...l.map((c) => el("td", {}, String(c)))))));
 }
-function arreter() { clearInterval(etat.lecture); etat.lecture = null; id("lecture-forme").setAttribute("d", "M4 2.5v11l9-5.5z"); id("lecture").setAttribute("aria-label", "Dérouler la crise"); }
-const choisir = (i, garder) => { if (!garder) arreter(); etat.i = (i + n) % n; rendre(); };
+function arreter() {
+  clearInterval(etat.lecture); etat.lecture = null;
+  id("lecture-forme").setAttribute("d", "M4 2.5v11l9-5.5z"); id("lecture-texte").textContent = "Dérouler"; id("lecture").setAttribute("aria-label", "Dérouler la crise");
+}
+function choisir(i, garder) { if (!garder) arreter(); etat.i = (i + n) % n; rendre(); }
 const axeArrete = (i) => (D.arretes[i].endsWith("-12") ? D.arretes[i].slice(0, 4) : null);
 const etiquettesArretes = D.arretes.map(dateLongue);
 const axePct = (v) => (v > 0 ? "+" : "") + nf(0).format(v).replace("-", "−") + " %";
@@ -677,14 +898,15 @@ function segment(parts, titre) {
   for (const p of parts) {
     const part = p.v / total;
     if (part <= 0) continue;
-    barre.append(el("i", { style: `flex:0 0 calc(${part * 100}% - 2px);background:var(--s${p.st});color:var(--s${p.st}-t)`, title: `Stade ${p.st} : ${pct(part, false, 1)}` }, part >= 0.09 ? pct(part) : ""));
+    barre.append(el("i", { style: `flex:0 0 calc(${part * 100}% - 2px);background:var(--s${p.st});color:${TEXTE_STADE[p.st]}`, title: `Stade ${p.st} : ${pct(part, false, 1)}` }, part >= 0.1 ? pct(part) : ""));
   }
   return barre;
 }
 
 function rendre() {
-  const i = etat.i, a = D.arretes[i], B = D.bootstrap;
+  const i = etat.i, a = D.arretes[i], B = D.bootstrap, P = D.par_stade;
   id("date-pilote").textContent = dateCourte(a);
+  id("curseur-arrete").value = String(i);
   for (const e of document.querySelectorAll(".date-arrete")) e.textContent = dateLongue(a);
   for (const b of id("frise").querySelectorAll("button")) b.setAttribute("aria-pressed", String(+b.dataset.i === i));
 
@@ -693,7 +915,9 @@ function rendre() {
   const pertes = Object.fromEntries(MODELES.map((mo) => [mo, somme(mo, "pertes", i)]));
   const estimees = somme("logistique", "pertes_estimees", i);
 
+  points(i);
   animer(id("t-ecart"), B.ecart[i], (v) => pct(v, true));
+  id("t-ecart").style.color = B.ecart[i] >= 0 ? "var(--lightgbm)" : "var(--logistique)";
   let detail = `Intervalle à 95 % : ${pct(B.bas[i], true)} à ${pct(B.haut[i], true)} en rééchantillonnant le portefeuille.`;
   const re = D.reestimation.find((r) => r.arrete === a);
   if (re) detail += ` Avec les modèles réestimés à chaque tirage : ${pct(re.bas, true)} à ${pct(re.haut, true)}, LightGBM plus élevé dans ${pct(re.part_superieur)} des ${re.tirages} tirages.`;
@@ -702,16 +926,14 @@ function rendre() {
   animer(id("t-log"), ecl.logistique, musd);
   animer(id("t-lgb"), ecl.lightgbm, musd);
   animer(id("t-pertes"), pertes.logistique, musd);
-  for (const [cible, mo] of [["t-log-detail", "logistique"], ["t-lgb-detail", "lightgbm"]]) {
-    id(cible).textContent = `${pct(ecl[mo] / encours[mo], false, 2)} de l'encours, ${pct(ecl[mo] / pertes[mo])} des pertes constatées`;
-  }
+  for (const [cible, mo] of [["t-log-detail", "logistique"], ["t-lgb-detail", "lightgbm"]]) id(cible).textContent = `${pct(ecl[mo] / encours[mo], false, 2)} de l'encours`;
+  anneau(id("a-log"), ecl.logistique / pertes.logistique, "var(--logistique)");
+  anneau(id("a-lgb"), ecl.lightgbm / pertes.lightgbm, "var(--lightgbm)");
   id("t-pertes-detail").textContent = `Minorant : ${musd(estimees)} de plus sont estimés pour les défauts sans perte publiée.`;
-  mini(id("m-log"), serie("logistique", "ecl"), "var(--logistique)", i);
-  mini(id("m-lgb"), serie("lightgbm", "ecl"), "var(--lightgbm)", i);
   mini(id("m-pertes"), serie("logistique", "pertes"), "var(--observe)", i);
 
   const ecartSerie = { nom: "Écart relatif", couleur: "var(--lightgbm)", valeurs: B.ecart.map((v) => v * 100) };
-  const bande = { bas: B.bas.map((v) => v * 100), haut: B.haut.map((v) => v * 100), couleur: "var(--lightgbm)" };
+  const bande = { bas: B.bas.map((v) => v * 100), haut: B.haut.map((v) => v * 100), couleur: "var(--lightgbm)", opacite: 0.3 };
   const complementEcart = (j) => {
     const l = [`Intervalle : ${pct(B.bas[j], true)} à ${pct(B.haut[j], true)}`];
     const r = D.reestimation.find((q) => q.arrete === D.arretes[j]);
@@ -738,13 +960,14 @@ function rendre() {
     barres: D.reestimation.map((r) => ({ i: D.arretes.indexOf(r.arrete), bas: r.bas * 100, haut: r.haut * 100 })).filter((b) => b.i >= 0),
     format: (v) => pct(v / 100, true), formatAxe: axePct, complement: complementEcart, graduationX: axeArrete, surChoix: choisir,
   });
+  chaleur(id("g-chaleur"), i);
 
   /* Stades */
-  const P = D.par_stade;
   id("segments").replaceChildren(
     el("div", { class: "rangee" }, "Encours", segment(STADES.map((st) => ({ st, v: P.lightgbm[st].encours[i] })), "Répartition de l'encours")),
     el("div", { class: "rangee" }, "Provision logistique", segment(STADES.map((st) => ({ st, v: P.logistique[st].ecl[i] })), "Répartition de la provision logistique")),
     el("div", { class: "rangee" }, "Provision LightGBM", segment(STADES.map((st) => ({ st, v: P.lightgbm[st].ecl[i] })), "Répartition de la provision LightGBM")));
+  cascade(id("g-cascade"), i);
   const maxStade = Math.max(...MODELES.flatMap((mo) => STADES.map((st) => P[mo][st].ecl[i])), 1);
   id("cartes-stades").replaceChildren(...STADES.map((st) => {
     const duo = el("div", { class: "duo" });
@@ -754,9 +977,8 @@ function rendre() {
         el("i", { style: `width:${(62 * v) / maxStade}%;background:${COULEUR[mo]}` }), `${millions(v)} M$`));
     }
     const s = P.lightgbm[st], l = P.logistique[st];
-    const ecart = l.ecl[i] > 0 ? pct(s.ecl[i] / l.ecl[i] - 1, true) : "n.d.";
-    return el("div", { class: "stade" },
-      el("header", {}, el("div", { class: "jeton", style: `background:var(--s${st});color:var(--s${st}-t)` }, st),
+    return el("div", { class: "carte stade" },
+      el("header", {}, el("div", { class: "jeton", style: `background:var(--s${st});color:${TEXTE_STADE[st]}` }, st),
         el("div", {}, el("h3", {}, NOM_STADE[st]), el("p", {}, HORIZON[st]))),
       duo,
       el("dl", {},
@@ -764,28 +986,37 @@ function rendre() {
         el("dt", {}, "Encours"), el("dd", {}, entier(s.encours[i] / 1e6) + " M$"),
         el("dt", {}, "Taux de provision logistique"), el("dd", {}, l.encours[i] > 0 ? pct(l.ecl[i] / l.encours[i], false, 2) : "n.d."),
         el("dt", {}, "Taux de provision LightGBM"), el("dd", {}, s.encours[i] > 0 ? pct(s.ecl[i] / s.encours[i], false, 2) : "n.d."),
-        el("dt", {}, "Écart LightGBM"), el("dd", {}, st === "3" ? "aucun" : ecart)));
+        el("dt", {}, "Écart LightGBM"), el("dd", {}, st === "3" ? "aucun" : l.ecl[i] > 0 ? pct(s.ecl[i] / l.ecl[i] - 1, true) : "n.d.")));
   }));
 
   /* Scénarios */
-  const w = poids();
-  for (const s of ["central", "defavorable", "favorable"]) id("o-" + s).textContent = pct(w[s]);
-  const sc = (mo) => D.scenarios[mo][etat.surcouche];
-  table("table-scenarios", ["Provision (M$)", ...MODELES.map((mo) => NOM[mo])], [
-    ["Macro figée", ...MODELES.map((mo) => millions(ecl[mo]))],
-    ["Scénario central", ...MODELES.map((mo) => millions(sc(mo).central[i]))],
-    ["Scénario défavorable", ...MODELES.map((mo) => millions(sc(mo).defavorable[i]))],
-    ["Scénario favorable", ...MODELES.map((mo) => millions(sc(mo).favorable[i]))],
-    ["Pondérée avec vos poids", ...MODELES.map((mo) => millions(ponderee(mo, i, w)))],
-    ["Écart à la macro figée", ...MODELES.map((mo) => pct(ponderee(mo, i, w) / ecl[mo] - 1, true))],
-  ], 4);
+  const w = poids(), mo = etat.modele, sc = D.scenarios[mo][etat.surcouche];
+  for (const s of SCENARIOS) id("o-" + s).textContent = pct(w[s]);
+  for (const b of document.querySelectorAll(".bascule button")) b.setAttribute("aria-pressed", String(b.dataset.modele === mo));
+  id("nom-modele-scen").textContent = NOM[mo];
+  id("cle-poids").style.borderColor = COULEUR[mo];
+  triangle(i, w);
+  const relatif = (valeurs) => valeurs.map((v, j) => (v / somme(mo, "ecl", j) - 1) * 100);
+  const parScen = SCENARIOS.map((s) => relatif(sc[s]));
   lignes(id("g-scenarios"), {
-    titre: "Écart entre la provision pondérée par les scénarios et la provision à macro figée, par arrêté",
-    etiquettes: etiquettesArretes, zero: true, sel: i, hauteur: 320,
-    series: MODELES.map((mo) => ({ nom: NOM[mo], couleur: COULEUR[mo],
-      valeurs: D.arretes.map((_, j) => (ponderee(mo, j, w) / somme(mo, "ecl", j) - 1) * 100) })),
+    titre: "Écart entre la provision par scénario et la provision à macro figée, par arrêté", etiquettes: etiquettesArretes, zero: true, sel: i, hauteur: 300,
+    bande: { bas: D.arretes.map((_, j) => Math.min(...parScen.map((p) => p[j]))), haut: D.arretes.map((_, j) => Math.max(...parScen.map((p) => p[j]))), couleur: "var(--texte-2)", opacite: 0.16 },
+    series: [
+      { nom: "Scénario central", couleur: "var(--discret)", valeurs: parScen[0] },
+      { nom: "Avec vos poids", couleur: COULEUR[mo], epais: 2.5, valeurs: relatif(D.arretes.map((_, j) => ponderee(mo, j, w))) },
+    ],
+    complement: (j) => [`Défavorable : ${pct(parScen[1][j] / 100, true)}`, `Favorable : ${pct(parScen[2][j] / 100, true)}`],
     format: (v) => pct(v / 100, true), formatAxe: axePct, graduationX: axeArrete, surChoix: choisir,
   });
+  const scM = (m2) => D.scenarios[m2][etat.surcouche];
+  table("table-scenarios", ["Provision (M$)", ...MODELES.map((m2) => NOM[m2])], [
+    ["Macro figée", ...MODELES.map((m2) => millions(ecl[m2]))],
+    ["Scénario central", ...MODELES.map((m2) => millions(scM(m2).central[i]))],
+    ["Scénario défavorable", ...MODELES.map((m2) => millions(scM(m2).defavorable[i]))],
+    ["Scénario favorable", ...MODELES.map((m2) => millions(scM(m2).favorable[i]))],
+    ["Pondérée avec vos poids", ...MODELES.map((m2) => millions(ponderee(m2, i, w)))],
+    ["Écart à la macro figée", ...MODELES.map((m2) => pct(ponderee(m2, i, w) / ecl[m2] - 1, true))],
+  ], 4);
   etat.premier = false;
 }
 
@@ -793,7 +1024,7 @@ function rendreFixes() {
   const G = D.lgd;
   id("lgd-min").textContent = entier(G.min_defauts);
   lignes(id("g-lgd"), {
-    titre: "Perte en cas de défaut prévue et réalisée, par année de défaut", etiquettes: G.annees.map((an) => "Défauts de " + an), zero: true, hauteur: 300,
+    titre: "Perte en cas de défaut prévue et réalisée, par année de défaut", etiquettes: G.annees.map((an) => "Défauts de " + an), zero: true, hauteur: 300, entre: [0, 1],
     series: [
       { nom: "Prévue", couleur: "var(--prevue)", valeurs: G.prevue.map((v) => v * 100) },
       { nom: "Réalisée", couleur: "var(--observe)", valeurs: G.realisee.map((v) => v * 100) },
@@ -804,7 +1035,7 @@ function rendreFixes() {
   });
   const maxG = Math.max(...D.generations.map((g) => g.pertes + g.pertes_estimees));
   id("generations").replaceChildren(...D.generations.map((g) => {
-    const total = g.pertes + g.pertes_estimees, l = (v) => `${(64 * v) / maxG}%`;
+    const total = g.pertes + g.pertes_estimees, l = (v) => `${(62 * v) / maxG}%`;
     return el("div", { class: "generation" },
       el("div", { class: "an" }, String(g.millesime)),
       el("div", { class: "barre", title: `Provision LightGBM à l'octroi : ${musd(g.ecl.lightgbm)}` }, el("i", { style: `width:${l(g.ecl.lightgbm)};background:var(--lightgbm)` }), millions(g.ecl.lightgbm)),
@@ -821,12 +1052,13 @@ function rendreFixes() {
       millions(somme("logistique", "pertes", j))]));
 }
 
-/* Éléments fixes de la page */
+/* Éléments fixes et commandes */
 const ref = D.arretes.indexOf("2007-12");
 id("reponse-ecart").textContent = pct(D.bootstrap.ecart[ref], true);
-id("reponse-lgb").textContent = musd(somme("lightgbm", "ecl", ref)).replace("M$", "millions de dollars");
+id("reponse-lgb").textContent = millions(somme("lightgbm", "ecl", ref)) + " millions de dollars";
 id("reponse-log").textContent = millions(somme("logistique", "ecl", ref));
 id("fait-arretes").textContent = String(n);
+id("curseur-arrete").max = String(n - 1);
 for (const cible of ["reperes-ouverture", "reperes-ecl"]) {
   id(cible).replaceChildren(...REPERES.map((r, j) => el("li", {}, el("span", { class: "pastille" }, String(j + 1)), r.texte)));
 }
@@ -841,19 +1073,37 @@ for (const an of [...new Set(D.arretes.map((a) => a.slice(0, 4)))]) {
 frise.addEventListener("click", (ev) => { const b = ev.target.closest("button"); if (b) choisir(+b.dataset.i); });
 id("precedent").addEventListener("click", () => choisir(etat.i - 1));
 id("suivant").addEventListener("click", () => choisir(etat.i + 1));
+id("curseur-arrete").addEventListener("input", (ev) => choisir(+ev.target.value));
 id("lecture").addEventListener("click", () => {
   if (etat.lecture) { arreter(); return; }
-  id("lecture-forme").setAttribute("d", "M4 3h3v10H4zM9 3h3v10H9z");
-  id("lecture").setAttribute("aria-label", "Arrêter la lecture");
+  id("lecture-forme").setAttribute("d", "M4 3h3v10H4zM9 3h3v10H9z"); id("lecture-texte").textContent = "Arrêter"; id("lecture").setAttribute("aria-label", "Arrêter la lecture");
   if (etat.i === n - 1) choisir(0, true);
   etat.lecture = setInterval(() => { if (etat.i >= n - 1) arreter(); else choisir(etat.i + 1, true); }, 1100);
 });
-for (const s of ["central", "defavorable", "favorable"]) id("p-" + s).addEventListener("input", rendre);
+document.addEventListener("keydown", (ev) => {
+  if (ev.target.closest("input, select, button, a") || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  if (ev.key === "ArrowLeft") choisir(etat.i - 1);
+  if (ev.key === "ArrowRight") choisir(etat.i + 1);
+});
+for (const s of SCENARIOS) id("p-" + s).addEventListener("input", rendre);
 id("surcouche").addEventListener("change", (ev) => { etat.surcouche = ev.target.value; rendre(); });
 id("p-reinit").addEventListener("click", () => {
   for (const [s, v] of [["central", 50], ["defavorable", 30], ["favorable", 20]]) id("p-" + s).value = v;
   rendre();
 });
+for (const b of document.querySelectorAll(".bascule button")) b.addEventListener("click", () => { etat.modele = b.dataset.modele; rendre(); });
+const tri = id("triangle");
+tri.addEventListener("pointerdown", (ev) => { etat.glisse = true; tri.setPointerCapture(ev.pointerId); glisser(ev); });
+tri.addEventListener("pointermove", (ev) => { if (etat.glisse) glisser(ev); });
+for (const fin of ["pointerup", "pointercancel"]) tri.addEventListener(fin, () => { etat.glisse = false; });
+
+const liensSommaire = [...document.querySelectorAll(".sommaire a")];
+if ("IntersectionObserver" in window) {
+  const veille = new IntersectionObserver((entrees) => {
+    for (const e of entrees) if (e.isIntersecting) for (const l of liensSommaire) l.classList.toggle("actif", l.getAttribute("href") === "#" + e.target.id);
+  }, { rootMargin: "-25% 0px -65% 0px" });
+  for (const l of liensSommaire) veille.observe(document.querySelector(l.getAttribute("href")));
+}
 let attente, largeur = window.innerWidth;
 window.addEventListener("resize", () => {
   if (window.innerWidth === largeur) return;
