@@ -81,6 +81,14 @@ La version 1, sans remboursement anticipé, reste publiée
 ([`stades_backtest.md`](rapport/resultats/stades_backtest.md), fichiers
 `*_sans_remboursement.csv`) : la conclusion est la même.
 
+## Aperçu
+
+| La réponse : +41 % au 31/12/2007 | Arrêté par arrêté | Scénarios pondérés |
+| :-: | :-: | :-: |
+| <img src="docs/apercu/reponse.png" alt="Tableau de bord : écart de provision LightGBM contre logistique" width="100%"> | <img src="docs/apercu/arrete_par_arrete.png" alt="Tableau de bord : provision et pertes constatées par arrêté" width="100%"> | <img src="docs/apercu/scenarios.png" alt="Tableau de bord : poids des scénarios et effet sur la provision" width="100%"> |
+
+<sub>Captures du tableau de bord interactif, construit par <code>python rapport/tableau_de_bord.py</code> à partir des résultats de <code>rapport/resultats/</code>.</sub>
+
 ## État d'avancement
 
 | Semaine | Travail | État |
